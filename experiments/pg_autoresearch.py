@@ -77,19 +77,18 @@ def prepare_kernel(name: str, env: dict[str, str]) -> tuple[Path, str]:
         shutil.rmtree(target)
     target.mkdir(parents=True)
 
-    for rel in [
-        "train_kaggle.py",
-        "requirements.txt",
-    ]:
+    for rel in ["requirements.txt"]:
         shutil.copy2(REPO / rel, target / rel)
 
     wrapper = target / "run_kernel.py"
     env_lines = "\n".join(f"os.environ[{k!r}] = {v!r}" for k, v in sorted(env.items()))
+    train_source = (REPO / "train_kaggle.py").read_text()
     wrapper.write_text(
         "import os\n"
         f"{env_lines}\n"
-        "import train_kaggle\n"
-        "train_kaggle.train()\n"
+        "# Inlined because Kaggle executes only code_file as /kaggle/src/script.py.\n"
+        f"{train_source}\n"
+        "train()\n"
     )
     (target / "kernel-metadata.json").write_text(
         json.dumps(

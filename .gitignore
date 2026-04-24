@@ -16,3 +16,6 @@ logs/
 .gemini/
 .opencode/
 kaggle_pull/
+experiments/kaggle_work/
+experiments/kaggle_results/
+experiments/kaggle_state.json
