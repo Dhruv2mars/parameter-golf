@@ -36,7 +36,7 @@ _T4_SEQ_LEN = 512                 # Standard seq len
 _T4_GRAD_ACCUM = 1                # Faster update cadence for Kaggle iteration loops
 _T4_ITERATIONS = 2500             # Fewer iterations due to slower GPU
 _T4_MAX_WALLCLOCK = 2700          # Leave buffer for TTT (Kaggle 3hr limit)
-_T4_MATRIX_LR = 0.0003            # Conservative fused-AdamW baseline
+_T4_MATRIX_LR = 0.0008            # AdamW proxy-tuned for accum=1 fast Kaggle loops
 
 # ============== COMPRESSION ==============
 
