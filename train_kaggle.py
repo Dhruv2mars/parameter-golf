@@ -36,7 +36,7 @@ _T4_SEQ_LEN = 512                 # Standard seq len
 _T4_GRAD_ACCUM = 1                # Faster update cadence for Kaggle iteration loops
 _T4_ITERATIONS = 2500             # Fewer iterations due to slower GPU
 _T4_MAX_WALLCLOCK = 2700          # Leave buffer for TTT (Kaggle 3hr limit)
-_T4_MATRIX_LR = 0.0010            # AdamW proxy-tuned for accum=1 fast Kaggle loops
+_T4_MATRIX_LR = 0.0008            # AdamW proxy-tuned for accum=1 fast Kaggle loops
 
 # ============== COMPRESSION ==============
 
@@ -151,7 +151,7 @@ class H:
     ema_decay = float(os.environ.get("EMA_DECAY", 0.9965))  # SOTA uses 0.9965
     
     # Quantization
-    matrix_clip_sigmas = float(os.environ.get("MATRIX_CLIP_SIGMAS", 8.0))
+    matrix_clip_sigmas = float(os.environ.get("MATRIX_CLIP_SIGMAS", 12.85))
     embed_clip_sigmas = float(os.environ.get("EMBED_CLIP_SIGMAS", 20.0))
     
     # TTT
