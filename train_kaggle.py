@@ -221,21 +221,36 @@ def compute_val_bpb(val_loss, val_tokens, base_bytes_lut, device):
 
 # ============== QUANTIZATION ==============
 
-def quantize_row(t, clip_std_mult=12.85):
+def quantize_row(t, clip_std_mult=12.85, bits=8):
     t = t.float()
+    qmax = (1 << (bits - 1)) - 1
     if t.ndim < 2:
-        scale = (t.abs().max() / 127).clamp_min(1/127)
-        q = torch.round(torch.clamp(t, -127 * scale, 127 * scale) / scale).to(torch.int8)
+        scale = (t.abs().max() / qmax).clamp_min(1/qmax)
+        q = torch.round(torch.clamp(t, -qmax * scale, qmax * scale) / scale).to(torch.int8)
         return q, scale
     std = t.std(dim=1, keepdim=True)
     clip = std * clip_std_mult
-    scale = (clip / 127).clamp_min(1/127)
+    scale = (clip / qmax).clamp_min(1/qmax)
     q = torch.round(torch.clamp(t, -clip, clip) / scale).to(torch.int8)
     return q, scale.squeeze(-1)
+
+def pack_int6(q):
+    flat = (q.to(torch.int16).flatten() + 32).clamp_(0, 63).to(torch.int32)
+    pad = (-flat.numel()) % 4
+    if pad:
+        flat = torch.cat([flat, torch.zeros(pad, dtype=torch.int32)])
+    vals = flat.view(-1, 4)
+    word = vals[:, 0] | (vals[:, 1] << 6) | (vals[:, 2] << 12) | (vals[:, 3] << 18)
+    packed = torch.empty((word.numel(), 3), dtype=torch.uint8)
+    packed[:, 0] = (word & 255).to(torch.uint8)
+    packed[:, 1] = ((word >> 8) & 255).to(torch.uint8)
+    packed[:, 2] = ((word >> 16) & 255).to(torch.uint8)
+    return packed.flatten(), pad
 
 def quantize_state_dict(state_dict):
     quantized = {}
     scales = {}
+    meta = {}
     for name, tensor in state_dict.items():
         t = tensor.detach().cpu()
         if not t.is_floating_point():
@@ -243,11 +258,19 @@ def quantize_state_dict(state_dict):
             continue
         if "tok_emb" in name or "lm_head" in name:
             q, s = quantize_row(t, clip_std_mult=H.embed_clip_sigmas)
+            quantized[name] = q
+            meta[name] = {"bits": 8, "shape": tuple(t.shape)}
+        elif t.ndim == 2:
+            q, s = quantize_row(t, clip_std_mult=H.matrix_clip_sigmas, bits=6)
+            packed, pad = pack_int6(q)
+            quantized[name] = packed
+            meta[name] = {"bits": 6, "shape": tuple(t.shape), "pad": pad}
         else:
             q, s = quantize_row(t, clip_std_mult=H.matrix_clip_sigmas)
-        quantized[name] = q
+            quantized[name] = q
+            meta[name] = {"bits": 8, "shape": tuple(t.shape)}
         scales[name] = s
-    return {"q": quantized, "s": scales}
+    return {"q": quantized, "s": scales, "meta": meta}
 
 # ============== MUONeq-R ==============
 
