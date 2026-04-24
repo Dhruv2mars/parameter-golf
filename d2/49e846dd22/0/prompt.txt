@@ -1,0 +1,752 @@
+okay, so few things regarding the above run:
+- our training pipeline and overall infra setup is not nice. its really unstable, takes too long, not at all efficient for high iteration quick improvements setup like ours, where we have to do hit/trial and experiment to get better scores for the leaderboard. 
+- we still have 21 hrs of quota left, which is way enough. our limiting factor right now is speed of testing. we have to wait for so long to see if whatever we did actually resulted in improvement or not. for better workflow, i would suggest you lookup this repo and understand its overall vision and usability: https://github.com/karpathy/autoresearch
+- since we are not bound by the compute hours, we have to utilize and be innovative in parallism to do a lot in short time. we have to work a lot on our training setup and pipeline, make it much faster and stable. 
+
+now, i have deep dived into a lot of approaches which can help us win this challenge. our ultimate goal is to be sub 1 score in the leaderboard, consistently. 
+
+below is a detailed discussion on different approaches, check them, understand them in detail, research about them including seeing the research papers, etc. 
+
+
+To rank #1, the plan should not be “invent a whole new tiny LLM.” The highest-probability path is:
+
+> **Start from current Parameter Golf SOTA, then add only ideas that improve BPB-per-byte or BPB-per-training-minute.**
+
+Parameter Golf is scored by **bits per byte on FineWeb validation**, lower is better, with a **16 MB artifact cap** and **10-minute training cap on 8×H100 SXM**. OpenAI describes the goal as minimizing held-out loss under those exact constraints. ([OpenAI][1])
+
+The current strong target to beat is around **1.0810 BPB**, from the `SP8192_3LayerRecur_ParResid_QK525_LegalTTT` record. That record already uses SP8192 tokenization, depth recurrence, parallel residuals, QK gain, int6/int8-style compression, Muon-family optimization, and legal test-time training. ([GitHub][2])
+
+So the question becomes:
+
+> How do we get from ~1.081 to <1.07 first, then maybe <1.05, and eventually sub-1?
+
+## Reality check: sub-1 BPB is very hard
+
+Sub-1 is not impossible in principle, but under **16 MB + 10 minutes**, it is a moonshot. The naive baseline was **1.2244 BPB**, and the current top public record is roughly **1.0810 BPB**, so the public frontier already needed many compounding tricks. ([Parameter Golf][3])
+
+To reach **sub-1**, you likely need at least one genuinely new lever, not just minor hyperparameter tuning.
+
+My read:
+
+| Target         | Difficulty | What it likely needs                                                                         |
+| -------------- | ---------: | -------------------------------------------------------------------------------------------- |
+| **1.075–1.07** |  realistic | better recurrence, quantization, TTT, optimizer tuning                                       |
+| **1.06–1.05**  |       hard | new memory/compression module or better tokenizer/model co-design                            |
+| **1.03–1.01**  |  very hard | multiple new successful ideas stacked                                                        |
+| **<1.00**      |   moonshot | tiny model + lookup memory + recurrence + adaptation + near-perfect compression-aware design |
+
+The plan should target **rank #1 first**, then sub-1 as an aggressive research direction.
+
+---
+
+# What to keep from current SOTA
+
+Do **not** throw these away:
+
+1. **SP8192 tokenizer**
+2. **Depth recurrence**
+3. **Parallel residuals**
+4. **QK gain tuning**
+5. **Muon/MuonEq-R optimizer family**
+6. **Int6/int8 mixed compression**
+7. **Sliding-window evaluation**
+8. **Legal score-first TTT**
+
+These are not random tricks. They are already validated by the leaderboard. The current challenge rules also require meaningful improvement: new records generally need to beat SOTA by at least **0.005 nats** with statistical evidence, not just one lucky seed. ([Runpod][4])
+
+So the base should be:
+
+```text
+SOTA architecture as starting point
+not a clean-room rewrite
+```
+
+---
+
+# Highest-upside things to add
+
+## 1. Stronger recurrence schedule
+
+This is the most obvious rank-1 lever.
+
+Current SOTA already proves recurrence works: reusing layers gives more virtual depth without storing more unique parameters. The next move is to make recurrence more expressive.
+
+Try:
+
+```text
+stem layers: 0–2
+recurrent core: layers 3–6
+tail layers: 7–10
+
+schedule variants:
+  0,1,2, 3,4,5,6, 3,4,5,6, 7,8,9,10
+  0,1,2, 3,4,5,6 ×3, 7,8,9,10
+  0,1,2, 3,4,5 ×4, 6,7,8,9,10
+```
+
+Add **per-loop gates**:
+
+```text
+x = x + α_loop * Attention(LN(x)) + β_loop * MLP(LN(x))
+```
+
+This is inspired by DeepSeek V4/mHC-style residual routing, but tiny enough for Parameter Golf. DeepSeek V4 materials emphasize mHC-style stronger residual connections and Muon optimizer as part of its architecture/optimization stack. ([kili-technology.com][5])
+
+Why this could work:
+
+> Same weights, different behavior per loop.
+
+That gives “more model” without storing more layers.
+
+Priority: **very high**.
+
+---
+
+## 2. Multi-token prediction auxiliary loss
+
+This is one of the best DeepSeek-inspired ideas.
+
+Train the model not only to predict `t+1`, but also future offsets:
+
+```text
+main loss: predict t+1
+aux loss:  predict t+2
+aux loss:  predict t+4
+```
+
+Example:
+
+```text
+loss = CE(t+1)
+     + 0.10 * CE(t+2)
+     + 0.05 * CE(t+4)
+```
+
+The key is to use the auxiliary heads during training but avoid bloating the final artifact. If the aux heads are not needed for eval, drop them before saving.
+
+Why this helps:
+
+> Parameter Golf is time-capped. MTP gives more training signal per forward pass.
+
+DeepSeek-V3/V4 lineage makes MTP worth testing, and it is much more relevant here than reasoning RL or full MoE.
+
+Priority: **very high**.
+
+---
+
+## 3. Micro-Engram / n-gram lookup memory
+
+This is the most likely “new lever” if you are serious about sub-1.
+
+The idea:
+
+> Don’t make the tiny transformer memorize every local web-text pattern. Give it a small compressed lookup memory.
+
+FineWeb has tons of repeated patterns:
+
+```text
+" according to "
+" copyright "
+" published by "
+" privacy policy "
+" .com "
+" http"
+" tion"
+" ing"
+HTML-ish fragments
+boilerplate
+common phrase starts
+```
+
+A tiny lookup can improve local prediction cheaply.
+
+Parameter Golf version:
+
+```text
+key = hash(last 2–4 tokens)
+value = small residual vector or logit-bias vector
+```
+
+Variants:
+
+### A. Logit-bias table
+
+```text
+hash(context) → top-k token bias
+```
+
+Very cheap and directly targets BPB.
+
+### B. Residual embedding table
+
+```text
+x_0 = token_embedding + pos_embedding + engram_embedding(hash(context))
+```
+
+### C. Recurrent-core conditioning
+
+```text
+recurrent_core_input += memory_vector(hash(context))
+```
+
+Budget sweep:
+
+```text
+0 KB baseline
+128 KB
+256 KB
+512 KB
+1 MB
+2 MB
+```
+
+The key metric is:
+
+```text
+BPB gain per compressed byte
+```
+
+This idea is inspired by DeepSeek’s Engram/conditional memory direction, though recent V4 public material seems more focused on hybrid attention, mHC, Muon, MoE, and FP4/FP8 than officially confirming Engram as a main V4 component. Third-party V4 analyses have linked Engram, mHC, and sparse attention to V4, but some explicitly note that not all of that was officially confirmed. ([kili-technology.com][5])
+
+Priority: **very high for sub-1**, high for rank #1.
+
+---
+
+## 4. Compression-aware quantization search
+
+Do not optimize nominal bitwidth. Optimize actual compressed artifact size.
+
+A 4-bit matrix is not automatically better than a 5-bit or 6-bit matrix if it compresses poorly or hurts BPB. For Parameter Golf, the real objective is:
+
+```text
+lowest BPB under actual compressed bytes
+```
+
+Run a systematic sweep:
+
+```text
+matrix groups:
+  embeddings
+  attention Q/K/V/O
+  MLP up/gate/down
+  recurrent core
+  tail layers
+  memory/Engram tables
+
+bitwidths:
+  int4
+  int5
+  int6
+  int8
+  ternary
+
+clip:
+  many clip-k values
+
+compressors:
+  brotli
+  zstd
+  lzma
+```
+
+Possible outcome:
+
+```text
+embeddings: int8/factored
+attention: int6
+MLP: int5/int6
+expert/memory deltas: ternary/int4
+loop gates/LN/scales: fp16/fp32 small
+```
+
+This is probably where a lot of hidden leaderboard gains live.
+
+Priority: **very high**.
+
+---
+
+## 5. Better legal test-time training
+
+Current SOTA already uses legal TTT, so the question is not whether TTT helps. It is **which parameters to adapt**.
+
+Try restricted TTT:
+
+```text
+TTT update only:
+  LayerNorm scales
+  residual loop gates
+  QK gain
+  recurrent core
+  Micro-Engram bias table
+  tiny LoRA adapters
+```
+
+Do **not** update the whole model by default. Updating fewer parameters may be:
+
+* faster,
+* more stable,
+* less likely to overfit,
+* better within eval-time budget.
+
+Candidate:
+
+```text
+score tokens first
+then update loop gates + LN scales on already-scored tokens
+then score next chunk
+```
+
+This is leaderboard-relevant even if it gives only `0.001–0.003 BPB`.
+
+Priority: **high**.
+
+---
+
+# Medium-risk ideas worth testing
+
+## 6. MoE-lite, not full MoE
+
+Classic MoE is a trap here.
+
+DeepSeek-scale MoE helps because it lowers **active compute**. Parameter Golf counts **total artifact bytes**. All experts count, even inactive ones.
+
+So full MoE is probably bad.
+
+But MoE-lite could help:
+
+```text
+shared dense MLP
++ top-1 routed tiny expert delta
+```
+
+Where each expert is:
+
+```text
+low-rank
+ternary/int4
+small rank, e.g. 4–16
+```
+
+Formula:
+
+```text
+MLP(x) = shared_MLP(x) + gate(x) * Δ_expert(x)
+```
+
+Better still: deterministic hashed routing instead of learned router:
+
+```text
+expert_id = hash(local_context) % num_experts
+```
+
+This combines MoE with Micro-Engram.
+
+Priority: **medium**.
+
+---
+
+## 7. Ternary / 1.58-bit selectively
+
+Do not make the whole model 1-bit/ternary at first.
+
+The Parameter Golf ternary/binary experiments are interesting, but current public ternary records are not at the top; for example, a 73.7M ternary U-Net Transformer record shows the line of exploration, but it is far behind current 1.081-level SOTA. ([GitHub][6])
+
+Use ternary where it is most likely to help:
+
+```text
+expert deltas
+Micro-Engram tables
+MLP down projection
+some recurrent-core matrices
+```
+
+Avoid ternary for:
+
+```text
+embeddings
+LayerNorm/scales
+small gates
+maybe attention QK early on
+```
+
+Why:
+
+> Full ternary may improve density but hurt convergence inside 10 minutes.
+
+Priority: **medium**.
+
+---
+
+## 8. CSA/HCA-lite compressed attention
+
+DeepSeek V4’s useful lesson is **not** “copy 1M-token attention.” It is:
+
+> Mix attention granularities.
+
+For Parameter Golf, implement a tiny version:
+
+```text
+recent tokens: normal local attention
+older tokens: compressed summary tokens
+```
+
+Or across recurrence:
+
+```text
+loop 1: local attention
+loop 2: compressed summary attention
+loop 3: normal/global-ish attention
+```
+
+But be careful. If the sequence length is not large enough, attention compression may not help BPB. It may only save compute, and compute is not the only bottleneck.
+
+Priority: **medium-low**, unless attention cost is blocking more recurrence.
+
+---
+
+# Things I would avoid initially
+
+## Full DeepSeek-style MoE
+
+Bad fit. Total bytes matter.
+
+## Full DeepSeek Sparse Attention / Lightning Indexer
+
+Too much complexity. Mostly long-context compute saving.
+
+## Full mHC
+
+Interesting, but too complex for first attack. Use mHC-lite gates first.
+
+## RL / reasoning training
+
+Wrong objective. Parameter Golf is FineWeb compression, not reasoning.
+
+## Full binary model
+
+High-density, but likely slow to converge under 10 minutes.
+
+---
+
+# The actual rank-1 architecture I would try
+
+Call it something like:
+
+```text
+SP8192 Recurrent MicroMemory Transformer
+```
+
+Architecture:
+
+```text
+Tokenizer:
+  SP8192 baseline
+  optional tokenizer sweep later
+
+Backbone:
+  11 physical layers
+  d_model around current SOTA size
+  GQA / reduced KV heads
+  parallel residuals
+  QK gain
+
+Depth:
+  stem: layers 0–2
+  recurrent core: layers 3–6 repeated 2–4 times
+  tail: layers 7–10
+
+Loop control:
+  per-loop attention gate
+  per-loop MLP gate
+  maybe per-loop QK gain
+
+Memory:
+  Micro-Engram hash lookup
+  256KB–1MB budget
+  either residual-vector injection or top-k logit bias
+
+Training:
+  Muon/MuonEq-R sweep
+  next-token CE
+  + MTP t+2/t+4 auxiliary losses
+  aggressive schedule tuned for 600s
+
+Compression:
+  int6/int8 starting point
+  sweep int5/int6 for MLP/attention
+  ternary only for optional deltas/memory
+  choose by actual compressed bytes
+
+Evaluation:
+  sliding window
+  legal score-first TTT
+  update only gates/LN/recurrent-core/adapters
+```
+
+The core thesis:
+
+> Reuse parameters across depth, use tiny lookup memory for local text patterns, train with more future signal per step, and compress by entropy rather than nominal bitwidth.
+
+That is the most plausible path.
+
+---
+
+# The experiment order
+
+Do not stack everything immediately. Run it like this.
+
+## Phase 0: reproduce SOTA
+
+Goal:
+
+```text
+Reproduce ~1.081 BPB within noise
+```
+
+Until this works, nothing else is trustworthy.
+
+## Phase 1: recurrence/gates
+
+Experiments:
+
+```text
+R0: current SOTA schedule
+R1: 4-layer recurrent core ×2
+R2: 4-layer recurrent core ×3
+R3: 3-layer core ×4
+R4: variable loop count during training
+R5: scalar gates per loop
+R6: vector gates per loop
+```
+
+Keep if:
+
+```text
+post-compression BPB improves by >= 0.001
+```
+
+## Phase 2: MTP
+
+Experiments:
+
+```text
+M0: no MTP
+M1: t+2, weight 0.05
+M2: t+2, weight 0.10
+M3: t+2/t+4, weights 0.10/0.05
+M4: t+2/t+4/t+8, weights 0.10/0.05/0.025
+```
+
+Watch out: too much MTP may improve representations but hurt next-token BPB.
+
+## Phase 3: Micro-Engram
+
+Experiments:
+
+```text
+E0: no memory
+E1: 128KB logit-bias table
+E2: 256KB logit-bias table
+E3: 512KB logit-bias table
+E4: 1MB residual vector table
+E5: hash-routed low-rank delta
+```
+
+Keep only if the BPB gain beats spending those bytes on dense model params.
+
+## Phase 4: quantization/compression
+
+Run matrix-level sweeps.
+
+Most important:
+
+```text
+MLP int5 vs int6
+attention int5 vs int6
+embeddings int8 vs factored int8
+Engram table int8 vs ternary
+Brotli vs zstd vs lzma
+clip-k sweep
+```
+
+This should be automated. Manual guessing will lose.
+
+## Phase 5: restricted TTT
+
+Experiments:
+
+```text
+T0: current TTT
+T1: LN/scales only
+T2: loop gates only
+T3: recurrent core only
+T4: Micro-Engram/logit-bias only
+T5: tiny LoRA adapters only
+T6: gates + LN + QK gain
+```
+
+The goal is not maximal adaptation. It is maximal **BPB improvement per eval second**.
+
+## Phase 6: MoE-lite / ternary deltas
+
+Only after the above.
+
+Experiments:
+
+```text
+D0: no expert delta
+D1: 4 experts, rank 4
+D2: 8 experts, rank 4
+D3: 8 experts, rank 8
+D4: hash-routed experts
+D5: learned top-1 router
+```
+
+Compression:
+
+```text
+expert deltas: ternary/int4
+router: tiny or deterministic
+```
+
+---
+
+# What might get to sub-1
+
+To actually target **<1.00 BPB**, I think you need a combination like:
+
+```text
+1. Better tokenizer/model co-design
+2. Recurrent depth with loop-specialization
+3. Micro-Engram or n-gram memory
+4. MTP or richer auxiliary losses
+5. Legal eval-time adaptation
+6. Compression-aware quantization
+```
+
+The most likely sub-1-enabling component is **Micro-Engram**, because it adds a different capability class:
+
+* transformer = general pattern modeling
+* recurrence = deeper computation
+* MTP = better training signal
+* TTT = local adaptation
+* Micro-Engram = cheap memorization of frequent local patterns
+
+Without some kind of lookup/memory/tokenizer breakthrough, sub-1 under 16 MB feels unlikely from dense transformer tuning alone.
+
+---
+
+# A sharper sub-1 idea: learned compressed phrase model + transformer
+
+This is the most “outside the box but still legal-looking” direction.
+
+Instead of only using a neural LM, build a hybrid:
+
+```text
+small neural transformer
++ compressed phrase/ngram predictor
++ learned interpolation gate
+```
+
+At each position:
+
+```text
+P(final) = gate * P(transformer) + (1 - gate) * P(ngram_memory)
+```
+
+Where the n-gram memory is:
+
+```text
+compressed table of frequent contexts → next-token distribution
+```
+
+This is basically a tiny neural + statistical language model ensemble.
+
+Why it could be strong:
+
+> FineWeb has many predictable local contexts. A classical compressed n-gram model may beat a neural model per byte for those contexts.
+
+This is not glamorous, which is exactly why it might work.
+
+Test:
+
+```text
+0.5MB ngram memory
+1MB ngram memory
+2MB ngram memory
+```
+
+Compare against:
+
+```text
+same bytes added to transformer parameters
+```
+
+If the n-gram memory wins, this becomes the sub-1 path.
+
+---
+
+# My final recommendation
+
+For rank #1, build:
+
+```text
+SOTA + recurrence gates + MTP + compression sweep + restricted TTT
+```
+
+For sub-1, add:
+
+```text
+Micro-Engram / compressed n-gram memory
+```
+
+The final “best shot” stack:
+
+```text
+SP8192 tokenizer
+11-layer recurrent transformer
+4-layer recurrent core with per-loop gates
+parallel residuals
+QK gain sweep
+Muon/MuonEq-R optimizer
+MTP t+2/t+4 auxiliary training
+Micro-Engram 256KB–1MB lookup memory
+int6/int8 + selected int5/ternary compression
+Brotli/zstd/lzma artifact search
+legal TTT updating gates/LN/memory/adapters only
+```
+
+The bet is simple:
+
+> Current SOTA already has the best dense tiny-transformer tricks. To beat it meaningfully, add a cheap memory path and make recurrence more expressive without adding many bytes.
+
+[1]: https://openai.com/index/parameter-golf/?utm_source=chatgpt.com "OpenAI Model Craft: Parameter Golf"
+[2]: https://github.com/openai/parameter-golf/blob/main/records/track_10min_16mb/REDACTED/README.md?utm_source=chatgpt.com "parameter-golf/records/track_10min_16mb/2026-04- ..."
+[3]: https://openai-parameter-golf.mintlify.app/?utm_source=chatgpt.com "Parameter Golf - Parameter Golf"
+[4]: https://www.runpod.io/blog/openais-parameter-golf-train-the-best-language-model-that-fits-in-16mb-on-runpod?utm_source=chatgpt.com "OpenAI's Parameter Golf: Train the Best Language Model ..."
+[5]: https://kili-technology.com/blog/data-story-deepseek-v4?utm_source=chatgpt.com "DeepSeek V4 Guide: Engram Memory, Training Data ..."
+[6]: https://github.com/openai/parameter-golf/blob/main/records/track_10min_16mb/REDACTED/README.md?utm_source=chatgpt.com "Record: 1.1570 BPB — 73.7M Ternary U-Net Transformer"
+
+
+****
+based on above conversation and discussion, tell me what are your thoughts on this. 
+****
+
+---
+
+great. i like your thinking and reasoning. but i would still say that you shouldnt be demotivated that sub 1 is not achievable, is it very possible to do. so you shouldnt just be lazy and do not try at all. you should work incrementally, and after every sucessful decrease in bpb, you should focus on reducing it even furrther, and then, even further, and so on. 
+
+but its also required for you to tighten the training pipeline and our overall workflow as well, considering our very specific requirements for this challenge and past experiences. 
+
+you should now go ahead, and acting upon your thought, i order you to implement [$codex-autoresearch](/Users/dhruv2mars/.agents/skills/codex-autoresearch/SKILL.md) as well. and continnue to update/progress further ahead. do not stop at all, until a very significant and winning possiblity run. go ahead. [$caveman](/Users/dhruv2mars/.agents/skills/caveman/SKILL.md) ultra enabled.
+
+---
+
+1. as you recommend, bg seems ok. 
+2. see what works best, based on your learnings as well while implementing and experience. its entually your call. 
+3. yes. as you wish, its your call to make. 
+
+[$codex-autoresearch](/Users/dhruv2mars/.agents/skills/codex-autoresearch/SKILL.md) [$caveman](/Users/dhruv2mars/.agents/skills/caveman/SKILL.md) ultra. 
+
+
+DO NOT STOP UNTIL YOU ARE FULLY COMPLETE WITH ALL THE PHASES. AND YOU HAVE A VERY SOLID AND HUGE IMPROVEMENT WHICH IS WINNER-CONTENDER! Go Ahead!!!
