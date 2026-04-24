@@ -217,7 +217,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     pull(ref, dest)
     metrics = parse_logs(ref, dest, st)
     record(metrics, args.name)
-    print(json.dumps(metrics.__dict__ | {"metric": metrics.metric, "output": str(dest)}, sort_keys=True))
+    print(json.dumps(metrics.__dict__ | {"metric": metrics.metric, "val_bpb": metrics.metric, "output": str(dest)}, sort_keys=True))
     return 0 if metrics.best_val_bpb is not None and not metrics.non_finite else 1
 
 
@@ -227,7 +227,7 @@ def cmd_collect(args: argparse.Namespace) -> int:
     pull(args.ref, dest)
     metrics = parse_logs(args.ref, dest, st)
     record(metrics, args.name or args.ref)
-    print(json.dumps(metrics.__dict__ | {"metric": metrics.metric, "output": str(dest)}, sort_keys=True))
+    print(json.dumps(metrics.__dict__ | {"metric": metrics.metric, "val_bpb": metrics.metric, "output": str(dest)}, sort_keys=True))
     return 0 if metrics.best_val_bpb is not None and not metrics.non_finite else 1
 
 
