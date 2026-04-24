@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "ddb620b835d0",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "train_kaggle.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/dd/b620b835d0/0/metadata.json",
+      "transcript": "/dd/b620b835d0/0/full.jsonl",
+      "content_hash": "/dd/b620b835d0/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1714454,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1707904,
+    "output_tokens": 1586,
+    "api_call_count": 17
+  }
+}
