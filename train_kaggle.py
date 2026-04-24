@@ -151,7 +151,7 @@ class H:
     ema_decay = float(os.environ.get("EMA_DECAY", 0.9965))  # SOTA uses 0.9965
     
     # Quantization
-    matrix_clip_sigmas = float(os.environ.get("MATRIX_CLIP_SIGMAS", 12.85))
+    matrix_clip_sigmas = float(os.environ.get("MATRIX_CLIP_SIGMAS", 8.0))
     embed_clip_sigmas = float(os.environ.get("EMBED_CLIP_SIGMAS", 20.0))
     
     # TTT
