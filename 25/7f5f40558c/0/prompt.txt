@@ -1,0 +1,28 @@
+go ahead. hail minimax!!!
+
+---
+
+okay, while its running. i have few questions from you based on the 11 runs we have had before:
+- how much did we imrpove? our current standing? the score and ranking.
+- why did we switch from 2 t4 gpu to 1 p100? 
+- is making a new notebook at every version a good choice? or editing the same notebook is a better one? what was your reasoning behind choosing to start a new notebook for every version?
+
+---
+
+firstly, this is really really bad, that we have made no progress at all. so your whole reasoning and choice of decisions have been bad. you should have used the 2 t4 gpu, i have access to them. 
+
+now, do not work with autoresearch extension. first, make sure that our training is actually sucessful.
+
+---
+
+no, you get 2 t4 gpus, i see them in notebook, i can actually select it as well. in notebook settings, accelerator -> t4 gpu x2. 
+
+you should now setup a new notebook, with the correct gpu config. and then rather than creating new notebooks again and again, edit the notebook code instead and rerun. thats how you should work.
+
+---
+
+done, session running now.
+
+---
+
+you should cancel it and do the rerun again. for better observabilty. make sure that everything is perfectly right this time
