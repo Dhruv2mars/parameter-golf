@@ -1,0 +1,38 @@
+i am working on the parameter-golf challenge from openai. check it out: https://github.com/openai/parameter-golf
+where the ultimate goal is: train the best language model that fits in a 16MB artifact. 
+
+see where we stand right now in terms of leaderboard ranking by looking at the best scores and our score. 
+
+for our setup, we are using kaggle for the gpu compute for training (since we get 2 t4 gpu's for 30hrs/week quota). and as you might already know, i am on a m1 mac mini (16gb memory). 
+
+see the actual repo, submissions, leaderboard, their implementation and approach, search the web to know everything about parameter golf and everything related to it. see kaggle as well, and know everything about the setup we are currently running right now. get the whole context, full, all the relevant info you can get. 
+
+based on that, and evrythng you have understood. if you still have questions, need more context, have doubts, you can then ask me.
+
+---
+
+1. yes i do have that, if you have not noticed yet, or not checked. i am running the kaggle cli, and kgz or whatever the setup is for traning on kaggle gpus. check that out yourself to have full and complete context of our setup.
+2. i have 25 hours left at this point. this also you can see yourself if you have the setup context fully. make sure you know this. 
+4. yes, obviously since 10min was on 8xH100 which is not even comparable to our setup. we have no limits on the training time on kaggle in terms of submission. but it is important that we keep things aligned so that our iteration speed and improvement loops are high. 
+5. for now, i am competing personally, when we are at sota level locally, then we can actually think of prepping for real submission. then i may also use the h100 on runpod for more compute for more fine tuning, since we will know that we are at high ranks in the leaderboard. but not right now. 
+
+3. before moving onto our actual work. i would still suggest you to have more and full context of what has been done, what is our current setup, whats the progress, how have the things been till now, etc. post-that, we can discuss and brainstorm.
+
+---
+
+1. its a weekly reset. 
+2. do phase 1,2 and 3. our goal is to win, have the best lm under 16mb. and since we are using kaggle, which is much much slower than a mighty h100 cluster. we have to work parallely to iterate and move ahead faster. 
+3. do whatever you want, you have full control. all i want is, our lm should perform the best in the world. 
+4. you have to do everything yourself, so setup it according to you. automated if thats works best for you. 
+
+any more questions, doubts, need more context?
+
+---
+
+- use the pi-autoresearch extension to set up the training script, repo, added sstuff. we would use that in future. but our setup should be according to that from now on. 
+
+1. we are currently way behind in the race. do a few intensive runs just to be at the ~top 5 level. post-that, we can focus on short runs for finetuning and trying out different stuff to imrpvoe. 
+2. whatever u feel is correct and best. you are the senior ML engineer here, its your call to make. 
+3. there are 2 t4 gpu's, wont they help? whatever it is, no worries, do whats the best according to you (the best ml researcher in the world). its your call, you are the brains behind all of this. you have full control. 
+4. your call. 
+5. first, check with the pi-autoresearch extension and see what project structure it requires. follow that and push that, then you can move ahead with your work. though we are not using pi-autoresearch for now, but setting up our environment, repo, files, etc according to that.

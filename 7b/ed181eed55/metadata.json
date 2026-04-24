@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "7bed181eed55",
+  "strategy": "manual-commit",
+  "branch": "autoresearch/parameter-golf-2026-04-24",
+  "checkpoints_count": 18,
+  "files_touched": [
+    "PROGRESS.md",
+    "autoresearch.config.json",
+    "autoresearch.ideas.md",
+    "autoresearch.md",
+    "autoresearch.sh",
+    "kaggle_notebook.json",
+    "train_kaggle.py",
+    "upload_kaggle.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7b/ed181eed55/0/metadata.json",
+      "transcript": "/7b/ed181eed55/0/full.jsonl",
+      "content_hash": "/7b/ed181eed55/0/content_hash.txt",
+      "prompt": "/7b/ed181eed55/0/prompt.txt"
+    }
+  ]
+}
