@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"019dbfad-aec8-77de-b3aa-7a1cfdfa97db","timestamp":"2026-04-24T13:28:43.977Z","cwd":"/Users/dhruv2mars/dev/github/parameter-golf"}
+{"type":"model_change","id":"99d331c8","parentId":null,"timestamp":"2026-04-24T13:28:44.102Z","provider":"minimax","modelId":"MiniMax-M2.7"}
+{"type":"thinking_level_change","id":"b341a400","parentId":"99d331c8","timestamp":"2026-04-24T13:28:44.102Z","thinkingLevel":"high"}
+{"type":"message","id":"912b85ce","parentId":"b341a400","timestamp":"2026-04-24T13:28:44.172Z","message":{"role":"user","content":[{"type":"text","text":"resume"}],"timestamp":1777037324138}}
+{"type":"message","id":"8aafee7a","parentId":"912b85ce","timestamp":"2026-04-24T13:28:45.172Z","message":{"role":"assistant","content":[],"api":"anthropic-messages","provider":"minimax","model":"MiniMax-M2.7","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"aborted","timestamp":1777037324173,"errorMessage":"Operation aborted"}}

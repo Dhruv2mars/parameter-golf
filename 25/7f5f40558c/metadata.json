@@ -3,7 +3,7 @@
   "checkpoint_id": "257f5f40558c",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 287,
+  "checkpoints_count": 288,
   "files_touched": [
     "PROGRESS.md",
     "autoresearch.jsonl",
@@ -25,6 +25,12 @@
       "transcript": "/25/7f5f40558c/1/full.jsonl",
       "content_hash": "/25/7f5f40558c/1/content_hash.txt",
       "prompt": "/25/7f5f40558c/1/prompt.txt"
+    },
+    {
+      "metadata": "/25/7f5f40558c/2/metadata.json",
+      "transcript": "/25/7f5f40558c/2/full.jsonl",
+      "content_hash": "/25/7f5f40558c/2/content_hash.txt",
+      "prompt": "/25/7f5f40558c/2/prompt.txt"
     }
   ]
 }
