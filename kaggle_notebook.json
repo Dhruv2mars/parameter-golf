@@ -1,0 +1,35 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Parameter Golf - Kaggle 2xT4 Training\n",
+    "\n",
+    "This notebook runs the SOTA parameter golf training on Kaggle 2xT4 GPUs.\n",
+    "\n",
+    "## Features\n",
+    "- SP8192 vocabulary (adapts to SP1024 if download fails)\n",
+    "- GPTQ-SDClip quantization (int6 matrices, int8 embeddings)\n",
+    "- Depth recurrence (loop layers 4-5)\n",
+    "- MuonEq-R optimizer\n",
+    "- TTT (Test-Time Training) at evaluation\n",
+    "\n",
+    "## Usage\n",
+    "\n",
+    "1. Upload `train_kaggle.py` to Kaggle\n",
+    "2. Set environment variables or use defaults\n",
+    "3. Run - no external data needed (auto-downloads from HuggingFace)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "!python train_kaggle.py"
+   ]
+  }
+ ]
+}
