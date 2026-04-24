@@ -3,12 +3,15 @@
   "checkpoint_id": "257f5f40558c",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 210,
+  "checkpoints_count": 287,
   "files_touched": [
     "PROGRESS.md",
+    "autoresearch.jsonl",
+    "kaggle_notebook.json",
     "kernel-metadata.json",
     "run_train.sh",
-    "train_kaggle.py"
+    "train_kaggle.py",
+    "upload_kaggle.sh"
   ],
   "sessions": [
     {
@@ -16,6 +19,12 @@
       "transcript": "/25/7f5f40558c/0/full.jsonl",
       "content_hash": "/25/7f5f40558c/0/content_hash.txt",
       "prompt": "/25/7f5f40558c/0/prompt.txt"
+    },
+    {
+      "metadata": "/25/7f5f40558c/1/metadata.json",
+      "transcript": "/25/7f5f40558c/1/full.jsonl",
+      "content_hash": "/25/7f5f40558c/1/content_hash.txt",
+      "prompt": "/25/7f5f40558c/1/prompt.txt"
     }
   ]
 }

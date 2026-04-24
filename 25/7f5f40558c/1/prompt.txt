@@ -1,0 +1,9 @@
+this is the project that i am working on. i have to train the model on kaggle notebooks since they have 2 t4 gpu's available. make sure that our setup is aligned with that.
+
+---
+
+great. now i want you to run the model with the updated setup and see whre do we rank currently, score wise. and make sure that we do this run quick, just to know our current standing
+
+---
+
+no, go on kaggle and run it. you have to use kaggle yourself.
