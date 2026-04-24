@@ -1,0 +1,66 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "e63bb406ab71",
+  "session_id": "019dbfbf-9e9a-7f62-88b3-55de9b8c6d62",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-24T15:34:15.475624Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".gitignore",
+    "PROGRESS.md",
+    "autoresearch.config.json",
+    "autoresearch.ideas.md",
+    "autoresearch.jsonl",
+    "autoresearch.md",
+    "autoresearch.sh",
+    "kaggle_notebook.json",
+    "kernel-metadata.json",
+    "records/track_10min_16mb/2026-04-24_exp6_baseline/README.md",
+    "records/track_10min_16mb/2026-04-24_exp6_baseline/submission.json",
+    "run_train.sh",
+    "train_kaggle.py",
+    "upload_kaggle.sh"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "22f990b7f887",
+  "token_usage": {
+    "input_tokens": 10100920,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 9590656,
+    "output_tokens": 28370,
+    "api_call_count": 98
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-24T15:34:15.451775Z",
+    "agent_lines": 174,
+    "agent_removed": 592,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 174,
+    "total_lines_changed": 766,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 69,
+      "agent_lines_removed": 543
+    }
+  ]
+}

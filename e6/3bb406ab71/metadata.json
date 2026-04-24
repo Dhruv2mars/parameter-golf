@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "e63bb406ab71",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".gitignore",
+    "PROGRESS.md",
+    "autoresearch.config.json",
+    "autoresearch.ideas.md",
+    "autoresearch.jsonl",
+    "autoresearch.md",
+    "autoresearch.sh",
+    "kaggle_notebook.json",
+    "kernel-metadata.json",
+    "records/track_10min_16mb/2026-04-24_exp6_baseline/README.md",
+    "records/track_10min_16mb/2026-04-24_exp6_baseline/submission.json",
+    "run_train.sh",
+    "train_kaggle.py",
+    "upload_kaggle.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e6/3bb406ab71/0/metadata.json",
+      "transcript": "/e6/3bb406ab71/0/full.jsonl",
+      "content_hash": "/e6/3bb406ab71/0/content_hash.txt",
+      "prompt": "/e6/3bb406ab71/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10100920,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 9590656,
+    "output_tokens": 28370,
+    "api_call_count": 98
+  }
+}

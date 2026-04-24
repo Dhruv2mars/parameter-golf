@@ -1,0 +1,55 @@
+# AGENTS.md instructions for /Users/dhruv2mars/dev/github/parameter-golf
+
+<INSTRUCTIONS>
+# Rules
+- Be extremely concise.
+- Verify work before reporting back when possible.
+- Only stop early when truly blocked.
+- If the project already has `docs/prompt.md`, `docs/plans.md`, `docs/implement.md`, and `docs/documentation.md`, read them before substantial work and keep them current.
+- If the user explicitly asks to create durable memory for a project, create or refresh those files in the project's `docs/` folder before coding, then use them as the source of truth for the rest of the task.
+
+See local guidance when relevant:
+- [writing.md](~/.codex/docs/writing.md): how to write replies, plans, and questions.
+- [testing.md](~/.codex/docs/testing.md): how to approach tests and edge cases.
+- [tooling.md](~/.codex/docs/tooling.md): preferred tools for package management and browser checks.
+- [version-control.md](~/.codex/docs/version-control.md): branching, pull requests, commits, and ignore-file habits.
+- [execution.md](~/.codex/docs/execution.md): how to define done, verify work, and retry before returning.
+- [durable-memory.md](~/.codex/docs/durable-memory.md): when to create durable project memory and how to use it.
+</INSTRUCTIONS>
+
+---
+
+<environment_context>
+  <cwd>/Users/dhruv2mars/dev/github/parameter-golf</cwd>
+  <shell>zsh</shell>
+  <current_date>2026-04-24</current_date>
+  <timezone>Asia/Kolkata</timezone>
+</environment_context>
+
+---
+
+this is a fork of the parameter-golf repo challenge from openai, check the main repo and web to know the full info and have complete context about it. 
+
+the goal is: train the best language model that fits under 16mb. 
+
+i have done a few things here and there, but not achieved anything comparable to others. 
+
+our setup is, we are not training on runpod nvidia h100 gpu cluster, since thats expensive. i am utilizing the fact that kaggle gives us 30 hrs of compute per week. it gives us 2x t4 gpus. we are utilizing that for training. 
+
+now you have to checkout the whole repo (our current implementation and setup), first understand what we have done till now. then as the first step i would like you to do a cleanup of repo, with removing unwanted stuff which is not required. cleaning up and making things simpler. 
+
+our goal is to first make our model SOTA (comparable to top 5 in the leaderboard), then we will focus on finetuning and getting more perf out of it. until we are not in top 5 according to the scores, we will not submit. but our setup and implementation should be submission ready and following all the guidelines. 
+
+if you have any questions, doubt, need more context. ask me!
+
+---
+
+great. now we are at decent stage to move forward. 
+
+our very clear goal is, making the best model that fits 16mb. and it performs best on the leaderboard. 
+
+first, based on your understanding and what you think will make the best performing model, train it and tell me how much it scored. we will keep that as our internal baseline for progress tracking. 
+
+as you know, you will have to use kaggle gpus, perticularly 2x t4 gpu. and make sure you utilize that fact that we have 2 gpus, so parallelism should help. 
+
+any ques, doubts, need more context? ask me.
