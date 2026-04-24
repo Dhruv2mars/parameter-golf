@@ -1,0 +1,1 @@
+{"type":"config","name":"Parameter Golf: Train best LM under 16MB","metricName":"val_bpb","metricUnit":"BPB","bestDirection":"lower"}
