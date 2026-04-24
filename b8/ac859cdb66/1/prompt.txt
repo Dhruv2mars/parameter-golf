@@ -1,0 +1,41 @@
+$codex-autoresearch
+This repo is managed by the autoresearch runtime controller.
+The human already completed the confirmation phase for this run.
+Use /Users/dhruv2mars/dev/github/parameter-golf/autoresearch-results/launch.json as the authoritative launch manifest.
+Runtime launch decision: fresh (launch_manifest_ready).
+
+Original ask: Make Parameter Golf 16MB model winner-contender using Kaggle 2xT4 quota; tighten infra, then iterate until major val_bpb improvement.
+Session mode: background
+Mode: loop
+Goal: Lower Parameter Golf val_bpb on Kaggle 2xT4 by improving training infra, stability, optimizer/model schedule, and experiment throughput; pursue SOTA/winner-contender path toward sub-1.
+Scope: train_kaggle.py,run_train.sh,upload_kaggle.sh,kernel-metadata.json,experiments/**,PROGRESS.md
+Metric: val_bpb
+Direction: lower
+Verify: python3 experiments/pg_autoresearch.py run --name autoresearch-verify --env ITERATIONS=700 --env MAX_WALLCLOCK_SECONDS=900 --env VAL_LOSS_EVERY=100 --env VAL_MAX_TOKENS=65536 --env TTT_ENABLED=0 --timeout 3000 --poll 90
+Verify cwd: primary_repo
+Verify format: metrics_json
+Primary metric key: val_bpb
+Execution policy: danger_full_access
+Guard: python3 -m py_compile train_kaggle.py experiments/pg_autoresearch.py && bash -n run_train.sh upload_kaggle.sh
+Stop condition: Stop only for hard blocker/quota exhaustion or retained candidate near winner contention: val_bpb <= 1.05 with artifact <= 16000000; otherwise keep iterating.
+Rollback policy: dedicated experiment commits/worktree; destructive rollback allowed inside scope; never touch records except new valid candidate
+Parallel mode: serial
+Web search: enabled
+
+Results path: /Users/dhruv2mars/dev/github/parameter-golf/autoresearch-results/results.tsv
+State path: /Users/dhruv2mars/dev/github/parameter-golf/autoresearch-results/state.json
+
+Runtime checklist:
+- Baseline first, then initialize fresh artifacts if they do not exist yet.
+- Record every completed experiment before starting the next one.
+- Use helper scripts for authoritative TSV/state updates.
+- Let helper logic own keep/stop gating and retained-state semantics.
+
+Instructions:
+- Do not run the interactive wizard again.
+- Do not ask the user for launch confirmation again.
+- If results/state artifacts exist, resume from them.
+- If they do not exist yet, initialize a fresh run from the launch manifest.
+- When initializing fresh artifacts for this managed run, call autoresearch_init_run.py with --repo <primary_repo>, --workspace-root <workspace_root>, and --session-mode background.
+- Continue autonomously until a terminal condition or blocker is reached.
+- Keep all run-control decisions aligned with the launch manifest and current state.
