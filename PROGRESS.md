@@ -1,67 +1,30 @@
-# Parameter Golf - Dhruv2Mars Progress
+# Parameter Golf Progress
 
-## Current Status
+## Goal
 
-**Last Run (exp6_baseline):**
-- val_bpb: **2.60** (target: <1.22 baseline, goal: ~1.08 SOTA)
-- model: 6L×384 GQA, 5.3M params, Muon+WD
-- compressed: 2.48MB
-- Status: Still improving at step 1170
+Train a submission-ready language model under the 16,000,000-byte artifact cap. Do not submit until results are comparable to top 5 leaderboard scores.
 
-## Leaderboard
+Current top-5 target from upstream README: 1.0810-1.0856 val_bpb.
 
-| Rank | Score | Author | Key Techniques |
-|------|-------|--------|----------------|
-| #1 | **1.0810** | bigbag | SP8192 + 3-Layer Recurrence + Parallel Residuals + Legal TTT |
-| #2 | 1.0822 | aryanbhosale | Parallel Residuals + Score-First TTT |
-| #3 | 1.0828 | dexhunter | QK-Gain 5 + Legal TTT |
-| Baseline | 1.2244 | OpenAI | 9L 512dim 1024vocab |
-| **Us** | **2.60** | dhruv2mars | 6L×384 GQA + Muon |
+## Current Local Result
 
-## Project Setup (Autoresearch-Ready)
+`exp6_baseline`: 2.60 val_bpb, 6L x 384 GQA, Muon + weight decay, 2.48MB compressed. Useful only as a local experiment; not a valid record submission.
 
-```
-parameter-golf/
-├── train_kaggle.py      # SOTA training script (685 lines)
-├── run_train.sh         # Training runner for Kaggle
-├── autoresearch.sh      # Autoresearch experiment runner
-├── autoresearch.md      # Experiment documentation
-├── autoresearch.ideas.md # Ideas backlog
-├── autoresearch.config.json # Config (working dir, max iterations)
-├── PROGRESS.md          # This file
-├── upload_kaggle.sh     # Upload script
-└── kaggle_notebook.json # Notebook metadata
-```
+## Current Kaggle Baseline
 
-## Next Action
+`parameter-golf-t4x2-v5` v3: 2.4912 val_bpb at step 500 on 2x Tesla T4, 36.0M params, SP8192, 11L x 512d, AdamW lr=0.0003. Training reached wallclock cap at step 522. Run errored during post-train quantization after saving `best_model.pt`; score is from rank0 validation log, not a submission-ready artifact.
 
-**Push to Kaggle and run the first intensive training:**
+## Active Files
 
-```bash
-# Upload
-kaggle kernels push -p . --message "Parameter Golf v3: SP8192 + Depth Recurrence + MuonEq-R"
+- `train_kaggle.py`: Kaggle training script.
+- `run_train.sh`: local/Kaggle runner for `train_kaggle.py`.
+- `upload_kaggle.sh`: pushes the script kernel using `kernel-metadata.json`.
+- `kernel-metadata.json`: Kaggle script-kernel metadata.
+- `train_gpt.py`, `train_gpt_mlx.py`, `records/`, `data/`: upstream reference/evidence.
 
-# Or use the upload script
-bash upload_kaggle.sh
-```
+## Next Work
 
-## Environment Variables for SOTA Run
-
-```bash
-VOCAB_SIZE=8192          # SOTA uses 8192
-NUM_LAYERS=11            # SOTA uses 11
-MODEL_DIM=512
-MLP_MULT=4              # SOTA uses 4x expansion
-MATRIX_LR=0.022
-WEIGHT_DECAY=0.085
-MUON_MOMENTUM=0.99
-ITERATIONS=4000
-MAX_WALLCLOCK_SECONDS=3600
-TTT_ENABLED=1
-QK_GAIN_INIT=4.0
-```
-
-## Files in Scope (Don't Modify)
-
-- `train_gpt.py` - Original OpenAI reference (read-only)
-- `data/` - FineWeb dataset (read-only)
+1. Restore stable high-performance optimizer path; current Muon variant NaNs after first step.
+2. Reduce validation overhead; duplicate validation at each grad-accum microstep was fixed after v3.
+3. Re-run Kaggle baseline after quantization/save fix.
+4. Only create a new `records/` folder after a reproducible, compliant result exists.

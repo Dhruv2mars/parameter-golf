@@ -23,8 +23,10 @@ from pathlib import Path
 import numpy as np
 import sentencepiece as spm
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F
 from torch import nn
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 # ============== KAGGLE 2xT4 SETTINGS ==============
 # T4 specs: 16GB VRAM each, ~65 TFLOPs vs H100 SXM ~400 TFLOPs
@@ -34,18 +36,7 @@ _T4_SEQ_LEN = 512                 # Standard seq len
 _T4_GRAD_ACCUM = 4                # More accumulation for smaller batches
 _T4_ITERATIONS = 2500             # Fewer iterations due to slower GPU
 _T4_MAX_WALLCLOCK = 2700          # Leave buffer for TTT (Kaggle 3hr limit)
-_T4_MATRIX_LR = 0.022             # Same as SOTA
-
-# ============== KAGGLE 2xT4 SETTINGS ==============
-# T4 specs: 16GB VRAM each, ~65 TFLOPs vs H100 SXM ~400 TFLOPs
-# Batch sizes reduced for T4 memory constraints
-# 2xT4 = effectively 1.5x speed of single T4 (data parallel)
-_T4_BATCH_TOKENS = 8192          # Half of H100 (16K -> 8K)
-_T4_SEQ_LEN = 512                 # Standard seq len
-_T4_GRAD_ACCUM = 4                # More accumulation for smaller batches
-_T4_ITERATIONS = 2500             # Fewer iterations due to slower GPU
-_T4_MAX_WALLCLOCK = 2700          # Leave buffer for TTT (Kaggle 3hr limit)
-_T4_MATRIX_LR = 0.022             # Same as SOTA
+_T4_MATRIX_LR = 0.0003            # Conservative fused-AdamW baseline
 
 # ============== COMPRESSION ==============
 
@@ -123,6 +114,7 @@ class H:
     
     # Validation
     val_loss_every = int(os.environ.get("VAL_LOSS_EVERY", 50))
+    val_max_tokens = int(os.environ.get("VAL_MAX_TOKENS", 131072))
     
     # Model
     vocab_size = int(os.environ.get("VOCAB_SIZE", 8192))
@@ -147,8 +139,8 @@ class H:
     
     # Optimizer - T4 tuned
     matrix_lr = float(os.environ.get("MATRIX_LR", _T4_MATRIX_LR))
-    scalar_lr = float(os.environ.get("SCALAR_LR", 0.005))
-    tied_embed_lr = float(os.environ.get("TIED_EMBED_LR", 0.005))
+    scalar_lr = float(os.environ.get("SCALAR_LR", 0.0003))
+    tied_embed_lr = float(os.environ.get("TIED_EMBED_LR", 0.0003))
     weight_decay = float(os.environ.get("WEIGHT_DECAY", 0.095))  # SOTA uses 0.095
     muon_momentum = float(os.environ.get("MUON_MOMENTUM", 0.99))
     muon_backend_steps = int(os.environ.get("MUON_BACKEND_STEPS", 5))
@@ -222,7 +214,7 @@ def build_luts(sp, vocab_size, device):
 
 def compute_val_bpb(val_loss, val_tokens, base_bytes_lut, device):
     bits_per_token = val_loss / math.log(2)
-    val_subset = val_tokens[:32768].to(device).long()
+    val_subset = val_tokens.to(device).long()
     byte_count = base_bytes_lut[val_subset].sum().item()
     tokens_per_byte = val_subset.numel() / max(byte_count, 1)
     return bits_per_token * tokens_per_byte
@@ -231,6 +223,10 @@ def compute_val_bpb(val_loss, val_tokens, base_bytes_lut, device):
 
 def quantize_row(t, clip_std_mult=12.85):
     t = t.float()
+    if t.ndim < 2:
+        scale = (t.abs().max() / 127).clamp_min(1/127)
+        q = torch.round(torch.clamp(t, -127 * scale, 127 * scale) / scale).to(torch.int8)
+        return q, scale
     std = t.std(dim=1, keepdim=True)
     clip = std * clip_std_mult
     scale = (clip / 127).clamp_min(1/127)
@@ -470,37 +466,32 @@ def train():
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA required")
     
-    # Kaggle 2xT4: detect and configure multi-GPU
-    world_size = int(os.environ.get("WORLD_SIZE", torch.cuda.device_count()))
+    # Kaggle 2xT4: torchrun/DDP path.
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    rank = int(os.environ.get("RANK", "0"))
     device = torch.device(f"cuda:{local_rank}")
     torch.cuda.set_device(device)
-    
-    # Initialize distributed for 2xT4
+
     if world_size > 1:
-        if 'RANK' not in os.environ:
-            os.environ['RANK'] = '0'
-        if 'WORLD_SIZE' not in os.environ:
-            os.environ['WORLD_SIZE'] = str(world_size)
-        if 'MASTER_ADDR' not in os.environ:
-            os.environ['MASTER_ADDR'] = 'localhost'
-        if 'MASTER_PORT' not in os.environ:
-            os.environ['MASTER_PORT'] = '29500'
-        torch.distributed.init_process_group(backend="nccl")
+        dist.init_process_group(backend="nccl")
+
+    is_main = rank == 0
     
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     
     os.makedirs("logs", exist_ok=True)
-    logf = open(f"logs/{args.run_id}.txt", "w")
+    logf = open(f"logs/{args.run_id}.rank{rank}.txt", "w")
     
     def log(msg):
-        print(msg)
+        if is_main:
+            print(msg)
         print(msg, file=logf, flush=True)
     
     log(f"PyTorch: {torch.__version__}")
     log(f"Run ID: {args.run_id}")
-    log(f"Device: {torch.cuda.get_device_name()} (rank {local_rank}/{world_size})")
+    log(f"Device: {torch.cuda.get_device_name()} (rank {rank}/{world_size})")
     log(f"T4 Optimized: batch={_T4_BATCH_TOKENS}, accum={_T4_GRAD_ACCUM}, iters={_T4_ITERATIONS}")
     
     # Download data
@@ -530,20 +521,28 @@ def train():
     for m in model.modules():
         if isinstance(m, CastedLinear):
             m.float()
+    if world_size > 1:
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+    raw_model = model.module if world_size > 1 else model
     
-    n_params = sum(p.numel() for p in model.parameters())
+    n_params = sum(p.numel() for p in raw_model.parameters())
     log(f"Params: {n_params} ({n_params*2/1024/1024:.1f}MB bf16)")
     
-    # Optimizers - use AdamW for all params to ensure stability
-    all_params = list(model.parameters())
-    opt = torch.optim.AdamW(all_params, lr=args.matrix_lr, betas=(args.beta1, args.beta2), 
-                            weight_decay=args.weight_decay, fused=True)
+    opt = torch.optim.AdamW(
+        raw_model.parameters(),
+        lr=args.matrix_lr,
+        betas=(args.beta1, args.beta2),
+        weight_decay=args.weight_decay,
+        fused=True,
+    )
     
     # EMA
-    ema_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+    ema_state = {k: v.cpu().clone() for k, v in raw_model.state_dict().items()}
     
     # Data loader - each GPU loads same data (embarrassingly parallel)
     train_stream = TokenStream(os.path.join(data_path, "fineweb_train_*.bin"))
+    if rank > 0:
+        train_stream.take(rank * (args.train_batch_tokens + 1))
     
     def get_batch():
         span = args.train_batch_tokens + 1
@@ -568,45 +567,56 @@ def train():
     best_val_bpb = float('inf')
     best_state = None
     grad_accum = 0
+    last_val_step = -1
     
     while step < args.iterations:
         elapsed = 1000 * (time.perf_counter() - t0)
         
         # Validate
-        if step % args.val_loss_every == 0 and step > 0:
+        if step % args.val_loss_every == 0 and step > 0 and step != last_val_step:
+            last_val_step = step
+            if world_size > 1:
+                dist.barrier()
             torch.cuda.synchronize()
-            model.eval()
-            val_loss_sum = 0.0
-            val_token_count = 0
-            
-            with torch.no_grad():
-                for i in range(0, min(val_tokens.numel() - 1, 32768), args.train_seq_len * 4):
-                    x = val_tokens[i:i+args.train_seq_len*4].to(device).long()
-                    y = val_tokens[i+1:i+1+args.train_seq_len*4].to(device).long()
-                    with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                        loss = model(x, y)
-                    val_loss_sum += loss.item() * x.numel()
-                    val_token_count += x.numel()
-            
-            val_loss = val_loss_sum / val_token_count
-            val_bpb = compute_val_bpb(val_loss, val_tokens, base_bytes_lut, device)
-            
-            # Update EMA
-            current_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
-            for k in ema_state:
-                ema_state[k] = args.ema_decay * ema_state[k] + (1 - args.ema_decay) * current_state[k]
-            
-            if val_bpb < best_val_bpb:
-                best_val_bpb = val_bpb
-                best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
-            
-            log(f"step:{step}/{args.iterations} val_loss:{val_loss:.4f} val_bpb:{val_bpb:.4f} time:{elapsed:.0f}ms")
+            if is_main:
+                model.eval()
+                val_loss_sum = 0.0
+                val_token_count = 0
+                val_limit = min(val_tokens.numel() - 1, args.val_max_tokens)
+
+                with torch.no_grad():
+                    for i in range(0, val_limit, args.train_seq_len * 4):
+                        x = val_tokens[i:i+args.train_seq_len*4].to(device).long()
+                        y = val_tokens[i+1:i+1+args.train_seq_len*4].to(device).long()
+                        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                            loss = raw_model(x, y)
+                        val_loss_sum += loss.item() * x.numel()
+                        val_token_count += x.numel()
+
+                val_loss = val_loss_sum / val_token_count
+                val_bpb = compute_val_bpb(val_loss, val_tokens[:val_token_count], base_bytes_lut, device)
+
+                # Update EMA
+                current_state = {k: v.cpu().clone() for k, v in raw_model.state_dict().items()}
+                for k in ema_state:
+                    ema_state[k] = args.ema_decay * ema_state[k] + (1 - args.ema_decay) * current_state[k]
+
+                if val_bpb < best_val_bpb:
+                    best_val_bpb = val_bpb
+                    best_state = {k: v.cpu().clone() for k, v in raw_model.state_dict().items()}
+
+                log(f"step:{step}/{args.iterations} val_loss:{val_loss:.4f} val_bpb:{val_bpb:.4f} time:{elapsed:.0f}ms")
             model.train()
+            if world_size > 1:
+                dist.barrier()
         
         # Train step
         x, y = get_batch()
         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             loss = model(x, y)
+        if not torch.isfinite(loss):
+            log(f"Non-finite loss at step {step}: {loss.item()}")
+            break
         loss.backward()
         grad_accum += 1
         
@@ -632,6 +642,12 @@ def train():
             log(f"step:{step}/{args.iterations} train_loss:{loss.item():.4f} time:{elapsed:.0f}ms")
     
     log(f"[5/8] Training complete. Best val_bpb: {best_val_bpb:.4f}")
+    if world_size > 1:
+        dist.barrier()
+    if not is_main:
+        logf.close()
+        dist.destroy_process_group()
+        return
     
     # Save
     log("[6/8] Saving checkpoints...")
@@ -652,10 +668,11 @@ def train():
     # TTT
     if args.ttt_enabled and best_state:
         log("[7/8] Running TTT...")
-        model.load_state_dict(best_state)
-        model.eval()
+        raw_model.load_state_dict(best_state)
+        ttt_model = raw_model
+        ttt_model.eval()
         
-        ttt_opt = torch.optim.SGD(model.parameters(), lr=args.ttt_lr, momentum=0.9)
+        ttt_opt = torch.optim.SGD(ttt_model.parameters(), lr=args.ttt_lr, momentum=0.9)
         
         for epoch in range(args.ttt_epochs):
             indices = torch.randperm(val_tokens.numel() - 1)[:32768]
@@ -664,9 +681,9 @@ def train():
                 x = val_tokens[chunk].to(device).long()
                 y = val_tokens[chunk+1].to(device).long()
                 with torch.no_grad():
-                    _ = model(x, y)
+                    _ = ttt_model(x, y)
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                    loss = model(x, y)
+                    loss = ttt_model(x, y)
                 ttt_opt.zero_grad()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -680,18 +697,35 @@ def train():
                 x = val_tokens[i:i+args.train_seq_len*4].to(device).long()
                 y = val_tokens[i+1:i+1+args.train_seq_len*4].to(device).long()
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                    loss = model(x, y)
+                    loss = ttt_model(x, y)
                 val_loss_sum += loss.item() * x.numel()
                 val_token_count += x.numel()
         
-        ttt_val_bpb = compute_val_bpb(val_loss_sum/val_token_count, val_tokens, base_bytes_lut, device)
+        ttt_val_bpb = compute_val_bpb(val_loss_sum/val_token_count, val_tokens[:val_token_count], base_bytes_lut, device)
         log(f"TTT val_bpb: {ttt_val_bpb:.4f}")
         
-        ttt_state = {k: v.cpu() for k, v in model.state_dict().items()}
+        ttt_state = {k: v.cpu() for k, v in ttt_model.state_dict().items()}
         torch.save(ttt_state, "best_model_ttt.pt")
     
     log("[8/8] Done!")
     logf.close()
+    if world_size > 1:
+        dist.destroy_process_group()
 
 if __name__ == "__main__":
+    if (
+        os.environ.get("USE_DDP", "1") == "1"
+        and "LOCAL_RANK" not in os.environ
+        and torch.cuda.is_available()
+        and torch.cuda.device_count() > 1
+    ):
+        cmd = [
+            sys.executable,
+            "-m",
+            "torch.distributed.run",
+            "--standalone",
+            f"--nproc_per_node={torch.cuda.device_count()}",
+            __file__,
+        ]
+        os.execvp(cmd[0], cmd)
     train()

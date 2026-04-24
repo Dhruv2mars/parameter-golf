@@ -9,3 +9,10 @@ data/docs_selected.jsonl
 .mypy_cache/
 .venv
 logs/
+.claude/
+.codex/
+.entire/
+.factory/
+.gemini/
+.opencode/
+kaggle_pull/
