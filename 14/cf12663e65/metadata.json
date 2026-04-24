@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "14cf12663e65",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "experiments/pg_autoresearch.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/14/cf12663e65/0/metadata.json",
+      "transcript": "/14/cf12663e65/0/full.jsonl",
+      "content_hash": "/14/cf12663e65/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 582635,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 580736,
+    "output_tokens": 1107,
+    "api_call_count": 3
+  }
+}
