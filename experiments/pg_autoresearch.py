@@ -88,7 +88,6 @@ def prepare_kernel(name: str, env: dict[str, str]) -> tuple[Path, str]:
         f"{env_lines}\n"
         "# Inlined because Kaggle executes only code_file as /kaggle/src/script.py.\n"
         f"{train_source}\n"
-        "train()\n"
     )
     (target / "kernel-metadata.json").write_text(
         json.dumps(

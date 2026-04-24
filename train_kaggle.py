@@ -36,7 +36,7 @@ _T4_SEQ_LEN = 512                 # Standard seq len
 _T4_GRAD_ACCUM = 4                # More accumulation for smaller batches
 _T4_ITERATIONS = 2500             # Fewer iterations due to slower GPU
 _T4_MAX_WALLCLOCK = 2700          # Leave buffer for TTT (Kaggle 3hr limit)
-_T4_MATRIX_LR = 0.008             # Stable NS5-Muon default for matrix weights
+_T4_MATRIX_LR = 0.0003            # Conservative fused-AdamW baseline
 
 # ============== COMPRESSION ==============
 
@@ -139,15 +139,15 @@ class H:
     
     # Optimizer - T4 tuned
     matrix_lr = float(os.environ.get("MATRIX_LR", _T4_MATRIX_LR))
-    scalar_lr = float(os.environ.get("SCALAR_LR", 0.0006))
-    tied_embed_lr = float(os.environ.get("TIED_EMBED_LR", 0.0006))
+    scalar_lr = float(os.environ.get("SCALAR_LR", 0.0003))
+    tied_embed_lr = float(os.environ.get("TIED_EMBED_LR", 0.0003))
     weight_decay = float(os.environ.get("WEIGHT_DECAY", 0.095))  # SOTA uses 0.095
     muon_momentum = float(os.environ.get("MUON_MOMENTUM", 0.99))
     muon_backend_steps = int(os.environ.get("MUON_BACKEND_STEPS", 5))
     beta1 = float(os.environ.get("BETA1", 0.9))
     beta2 = float(os.environ.get("BETA2", 0.95))
     adam_eps = float(os.environ.get("ADAM_EPS", 1e-8))
-    grad_clip_norm = float(os.environ.get("GRAD_CLIP_NORM", 0.5))
+    grad_clip_norm = float(os.environ.get("GRAD_CLIP_NORM", 1.0))
     ema_decay = float(os.environ.get("EMA_DECAY", 0.9965))  # SOTA uses 0.9965
     
     # Quantization
@@ -249,100 +249,44 @@ def quantize_state_dict(state_dict):
         scales[name] = s
     return {"q": quantized, "s": scales}
 
-# ============== MUON ==============
+# ============== MUONeq-R ==============
 
 def zeropower_ns5(G, steps=5):
-    a, b, c = (3.4445, -4.7750, 2.0315)
-    transposed = G.size(-2) > G.size(-1)
-    X = G.bfloat16()
-    if transposed:
-        X = X.T
-    X = X / (X.norm(dim=(-2, -1), keepdim=True) + 1e-7)
     for _ in range(steps):
-        A = X @ X.T
-        B = b * A + c * (A @ A)
-        X = a * X + B @ X
-    if transposed:
-        X = X.T
-    return X
+        G = 1.5*G - 0.5*G@G.T@G
+    return G
 
-class MuonLite(torch.optim.Optimizer):
-    def __init__(self, params, lr=0.008, momentum=0.95, backend_steps=5, nesterov=True, weight_decay=0.0):
-        defaults = dict(lr=lr, momentum=momentum, backend_steps=backend_steps, nesterov=nesterov, weight_decay=weight_decay)
+class MuonEqR(torch.optim.Optimizer):
+    def __init__(self, params, lr=0.04, momentum=0.95, backend_steps=5, weight_decay=0.0):
+        defaults = dict(lr=lr, momentum=momentum, backend_steps=backend_steps, weight_decay=weight_decay)
         super().__init__(params, defaults)
     
-    @torch.no_grad()
     def step(self):
         for group in self.param_groups:
             lr = group["lr"]
             mom = group["momentum"]
             steps = group["backend_steps"]
-            nesterov = group["nesterov"]
             wd = group["weight_decay"]
             for p in group["params"]:
                 if p.grad is None:
                     continue
-                g = p.grad.bfloat16()
-                state = self.state[p]
-                if "buf" not in state:
-                    state["buf"] = torch.zeros_like(g)
-                buf = state["buf"]
-                buf.mul_(mom).add_(g)
-                update = g.add(buf, alpha=mom) if nesterov else buf
-                update = zeropower_ns5(update, steps=steps)
-                scale = max(1, p.shape[-2] / p.shape[-1]) ** 0.5
-                if wd > 0:
-                    p.data.mul_(1.0 - lr * wd)
-                p.data.add_(update.to(p.dtype), alpha=-lr * scale)
-
-def is_control_param(name):
-    return any(key in name for key in (
-        "scale", "gain", "skip_weights", "resid_mix", "norm", "bias",
-    ))
-
-def make_optimizers(model, args):
-    matrix_params, token_params, scalar_params = [], [], []
-    seen = set()
-    for name, p in model.named_parameters():
-        if not p.requires_grad or id(p) in seen:
-            continue
-        seen.add(id(p))
-        if "tok_emb" in name or "lm_head" in name:
-            token_params.append(p)
-        elif p.ndim == 2 and not is_control_param(name):
-            matrix_params.append(p)
-        else:
-            scalar_params.append(p)
-
-    optimizers = []
-    if token_params:
-        optimizers.append(torch.optim.AdamW(
-            [{"params": token_params, "lr": args.tied_embed_lr, "base_lr": args.tied_embed_lr}],
-            betas=(args.beta1, args.beta2),
-            eps=args.adam_eps,
-            weight_decay=args.weight_decay,
-            fused=True,
-        ))
-    if matrix_params:
-        muon = MuonLite(
-            matrix_params,
-            lr=args.matrix_lr,
-            momentum=args.muon_momentum,
-            backend_steps=args.muon_backend_steps,
-            weight_decay=args.weight_decay,
-        )
-        for group in muon.param_groups:
-            group["base_lr"] = args.matrix_lr
-        optimizers.append(muon)
-    if scalar_params:
-        optimizers.append(torch.optim.AdamW(
-            [{"params": scalar_params, "lr": args.scalar_lr, "base_lr": args.scalar_lr}],
-            betas=(args.beta1, args.beta2),
-            eps=args.adam_eps,
-            weight_decay=args.weight_decay,
-            fused=True,
-        ))
-    return optimizers, len(matrix_params), len(token_params), len(scalar_params)
+                g = p.grad
+                if g.ndim == 2:
+                    g_normed = g / (g.norm(dim=1, keepdim=True) + 1e-8)
+                    z = zeropower_ns5(g_normed.float(), steps=steps)
+                    z = z * max(1, z.size(0) / z.size(1)) ** 0.5
+                    state = self.state[p]
+                    if "buf" not in state:
+                        state["buf"] = torch.zeros_like(g)
+                    buf = state["buf"]
+                    buf.mul_(mom).add_(z)
+                    if wd > 0:
+                        p.data.mul_(1 - lr * wd)
+                    p.data.add_(buf.to(p.dtype), alpha=-lr)
+                else:
+                    if wd > 0:
+                        p.data.mul_(1 - lr * wd)
+                    p.data.add_(g, alpha=-lr)
 
 # ============== MODEL ==============
 
@@ -584,8 +528,13 @@ def train():
     n_params = sum(p.numel() for p in raw_model.parameters())
     log(f"Params: {n_params} ({n_params*2/1024/1024:.1f}MB bf16)")
     
-    optimizers, n_matrix, n_token, n_scalar = make_optimizers(raw_model, args)
-    log(f"Optimizers: muon_matrices={n_matrix} token_tensors={n_token} scalar_tensors={n_scalar}")
+    opt = torch.optim.AdamW(
+        raw_model.parameters(),
+        lr=args.matrix_lr,
+        betas=(args.beta1, args.beta2),
+        weight_decay=args.weight_decay,
+        fused=True,
+    )
     
     # EMA
     ema_state = {k: v.cpu().clone() for k, v in raw_model.state_dict().items()}
@@ -673,17 +622,14 @@ def train():
         
         if grad_accum >= args.grad_accum_steps:
             scale = lr_schedule(step, elapsed)
-            for opt in optimizers:
-                for g in opt.param_groups:
-                    g["lr"] = g["base_lr"] * scale
+            for g in opt.param_groups:
+                g["lr"] = args.matrix_lr * scale
             
             if args.grad_clip_norm > 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
             
-            for opt in optimizers:
-                opt.step()
-            for opt in optimizers:
-                opt.zero_grad(set_to_none=True)
+            opt.step()
+            opt.zero_grad(set_to_none=True)
             
             grad_accum = 0
             step += 1
