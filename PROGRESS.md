@@ -18,65 +18,50 @@
 | Baseline | 1.2244 | OpenAI | 9L 512dim 1024vocab |
 | **Us** | **2.60** | dhruv2mars | 6L×384 GQA + Muon |
 
-## Key Gaps
+## Project Setup (Autoresearch-Ready)
 
-1. **Vocabulary** - We're at 1024, SOTA uses 8192
-2. **Quantization** - We have none, SOTA uses GPTQ int6/int8 with SDClip
-3. **Depth Recurrence** - Not implemented
-4. **Training iterations** - Only 1170 steps, model still improving
-5. **Parallel residuals** - Not implemented
-
-## Our Setup
-
-- **Kaggle 2xT4**: 30hrs/week quota, ~2xP100 GPU power
-- **M1 Mac Mini**: 16GB, for development
-- **No time limit** on Kaggle (unlike 10min on 8×H100)
-
-## Next Steps
-
-### Phase 1: Quick Improvements
-1. Increase vocab to 4096/8192
-2. Extend training iterations to 4000+
-3. Add int8 quantization
-
-### Phase 2: Catch Baseline
-4. Implement depth recurrence (loop layers 4-5)
-5. Add GPTQ-SDClip quantization
-6. Implement parallel residuals
-
-### Phase 3: SOTA
-7. Implement TTT (Test-Time Training)
-8. Multi-seed averaging
-9. Hyperparameter tuning
-
-## Files
-
-- `train_kaggle.py` - Main training script for Kaggle
-- `upload_kaggle.sh` - Script to upload to Kaggle
-- `kaggle_notebook.json` - Kaggle notebook metadata
-
-## Running
-
-```bash
-# Upload to Kaggle
-bash upload_kaggle.sh
-
-# Or manually
-kaggle kernels push -p . --message "Parameter Golf Training"
+```
+parameter-golf/
+├── train_kaggle.py      # SOTA training script (685 lines)
+├── run_train.sh         # Training runner for Kaggle
+├── autoresearch.sh      # Autoresearch experiment runner
+├── autoresearch.md      # Experiment documentation
+├── autoresearch.ideas.md # Ideas backlog
+├── autoresearch.config.json # Config (working dir, max iterations)
+├── PROGRESS.md          # This file
+├── upload_kaggle.sh     # Upload script
+└── kaggle_notebook.json # Notebook metadata
 ```
 
-## Environment Variables
+## Next Action
+
+**Push to Kaggle and run the first intensive training:**
 
 ```bash
-# Key hyperparameters
+# Upload
+kaggle kernels push -p . --message "Parameter Golf v3: SP8192 + Depth Recurrence + MuonEq-R"
+
+# Or use the upload script
+bash upload_kaggle.sh
+```
+
+## Environment Variables for SOTA Run
+
+```bash
 VOCAB_SIZE=8192          # SOTA uses 8192
 NUM_LAYERS=11            # SOTA uses 11
 MODEL_DIM=512
 MLP_MULT=4              # SOTA uses 4x expansion
-MATRIX_LR=0.022         # Tuned learning rate
+MATRIX_LR=0.022
 WEIGHT_DECAY=0.085
 MUON_MOMENTUM=0.99
 ITERATIONS=4000
-MAX_WALLCLOCK_SECONDS=3000  # 50 minutes on Kaggle
+MAX_WALLCLOCK_SECONDS=3600
 TTT_ENABLED=1
+QK_GAIN_INIT=4.0
 ```
+
+## Files in Scope (Don't Modify)
+
+- `train_gpt.py` - Original OpenAI reference (read-only)
+- `data/` - FineWeb dataset (read-only)

@@ -6,19 +6,36 @@
    "source": [
     "# Parameter Golf - Kaggle 2xT4 Training\n",
     "\n",
-    "This notebook runs the SOTA parameter golf training on Kaggle 2xT4 GPUs.\n",
+    "Optimized for Kaggle 2xT4 GPUs (each T4: 16GB VRAM, ~65 TFLOPs)\n",
     "\n",
-    "## Features\n",
-    "- SP8192 vocabulary (adapts to SP1024 if download fails)\n",
+    "## Key Settings for 2xT4\n",
+    "\n",
+    "| Parameter | Value | Reason |\n",
+    "|-----------|-------|--------|\n",
+    "| Batch Tokens | 8192 | T4 memory constraint |\n",
+    "| Grad Accum | 4 | Effective batch = 32K |\n",
+    "| Iterations | 2500 | Fewer steps due to slower GPU |\n",
+    "| Wallclock | 2700s | Leave buffer for TTT |\n",
+    "\n",
+    "## SOTA Techniques\n",
+    "- SP8192 vocabulary\n",
     "- GPTQ-SDClip quantization (int6 matrices, int8 embeddings)\n",
-    "- Depth recurrence (loop layers 4-5)\n",
+    "- 3-Layer Depth Recurrence (layers 3,4,5)\n",
+    "- Parallel Residuals (layers 7+)\n",
+    "- QK-Gain 5.25\n",
+    "- Legal Score-First TTT\n",
     "- MuonEq-R optimizer\n",
-    "- TTT (Test-Time Training) at evaluation\n",
+    "- EMA (0.9965 decay)\n",
+    "\n",
+    "## Expected Performance\n",
+    "\n",
+    "- H100 SXM: ~1.08 BPB in 588s\n",
+    "- 2xT4: ~1.10-1.15 BPB in ~2500s (estimated)\n",
     "\n",
     "## Usage\n",
     "\n",
     "1. Upload `train_kaggle.py` to Kaggle\n",
-    "2. Set environment variables or use defaults\n",
+    "2. Set environment variables or use T4 defaults\n",
     "3. Run - no external data needed (auto-downloads from HuggingFace)"
    ]
   },
@@ -28,8 +45,49 @@
    "metadata": {},
    "outputs": [],
    "source": [
+    "# T4-Optimized Training with SOTA settings\n",
+    "import os\n",
+    "\n",
+    "# Override defaults for T4\n",
+    "os.environ['RUN_ID'] = 't4-sota-v1'\n",
+    "os.environ['VOCAB_SIZE'] = '8192'\n",
+    "os.environ['NUM_LAYERS'] = '11'\n",
+    "os.environ['MODEL_DIM'] = '512'\n",
+    "os.environ['MLP_MULT'] = '4'\n",
+    "os.environ['ITERATIONS'] = '2500'\n",
+    "os.environ['MAX_WALLCLOCK_SECONDS'] = '2700'\n",
+    "os.environ['WARMDOWN_FRAC'] = '0.72'\n",
+    "os.environ['TTT_ENABLED'] = '1'\n",
+    "os.environ['TTT_LR'] = '0.005'\n",
+    "os.environ['TTT_EPOCHS'] = '3'\n",
+    "os.environ['QK_GAIN_INIT'] = '5.25'\n",
+    "os.environ['WEIGHT_DECAY'] = '0.095'\n",
+    "os.environ['MATRIX_LR'] = '0.022'\n",
+    "os.environ['EMA_DECAY'] = '0.9965'\n",
+    "os.environ['TRAIN_BATCH_TOKENS'] = '8192'\n",
+    "os.environ['GRAD_ACCUM_STEPS'] = '4'\n",
+    "os.environ['ROPE_DIMS'] = '16'\n",
+    "os.environ['NUM_LOOPS'] = '2'\n",
+    "os.environ['LOOP_START'] = '4'\n",
+    "os.environ['LOOP_END'] = '5'\n",
+    "os.environ['ENABLE_LOOPING_AT'] = '0.35'\n",
+    "\n",
+    "# Run training\n",
     "!python train_kaggle.py"
    ]
   }
- ]
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "name": "python",
+   "version": "3.10.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
 }

@@ -3,7 +3,7 @@
 Parameter Golf - Kaggle 2xT4 Optimized
 SOTA techniques: SP8192 vocab, GPTQ-SDClip, Depth Recurrence, Parallel Residuals, MuonEq-R, TTT
 
-Version: Clean, robust implementation for T4 without Flash Attention 3
+Version: Clean, robust implementation for Kaggle 2xT4 GPUs (T4 = ~3x slower than H100 SXM)
 """
 
 import gc
@@ -18,6 +18,7 @@ import sys
 import time
 import uuid
 import zlib
+from pathlib import Path
 
 import numpy as np
 import sentencepiece as spm
@@ -25,19 +26,26 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-# ============== P100 FIX ==============
-_REEXEC_KEY = "_PG_REEXEC_DONE"
-if _REEXEC_KEY not in os.environ:
-    try:
-        t = torch.zeros(1, device='cuda')
-        del t
-    except:
-        print("Installing PyTorch 2.5.1...")
-        r = subprocess.run([sys.executable, '-m', 'pip', 'install',
-            'torch', '--index-url', 'https://download.pytorch.org/whl/cu121',
-            '-q', '--force-reinstall'], capture_output=True)
-        os.environ[_REEXEC_KEY] = "1"
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+# ============== KAGGLE 2xT4 SETTINGS ==============
+# T4 specs: 16GB VRAM each, ~65 TFLOPs vs H100 SXM ~400 TFLOPs
+# Batch sizes reduced for T4 memory constraints
+_T4_BATCH_TOKENS = 8192          # Half of H100 (16K -> 8K)
+_T4_SEQ_LEN = 512                 # Standard seq len
+_T4_GRAD_ACCUM = 4                # More accumulation for smaller batches
+_T4_ITERATIONS = 2500             # Fewer iterations due to slower GPU
+_T4_MAX_WALLCLOCK = 2700          # Leave buffer for TTT (Kaggle 3hr limit)
+_T4_MATRIX_LR = 0.022             # Same as SOTA
+
+# ============== KAGGLE 2xT4 SETTINGS ==============
+# T4 specs: 16GB VRAM each, ~65 TFLOPs vs H100 SXM ~400 TFLOPs
+# Batch sizes reduced for T4 memory constraints
+# 2xT4 = effectively 1.5x speed of single T4 (data parallel)
+_T4_BATCH_TOKENS = 8192          # Half of H100 (16K -> 8K)
+_T4_SEQ_LEN = 512                 # Standard seq len
+_T4_GRAD_ACCUM = 4                # More accumulation for smaller batches
+_T4_ITERATIONS = 2500             # Fewer iterations due to slower GPU
+_T4_MAX_WALLCLOCK = 2700          # Leave buffer for TTT (Kaggle 3hr limit)
+_T4_MATRIX_LR = 0.022             # Same as SOTA
 
 # ============== COMPRESSION ==============
 
@@ -104,14 +112,14 @@ class H:
     run_id = os.environ.get("RUN_ID", str(uuid.uuid4()))
     seed = int(os.environ.get("SEED", 1337))
     
-    # Training
-    iterations = int(os.environ.get("ITERATIONS", 4000))
-    train_batch_tokens = int(os.environ.get("TRAIN_BATCH_TOKENS", 16384))
-    train_seq_len = int(os.environ.get("TRAIN_SEQ_LEN", 512))
-    grad_accum_steps = int(os.environ.get("GRAD_ACCUM_STEPS", 4))
-    max_wallclock_seconds = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 3000.0))
-    warmup_steps = int(os.environ.get("WARMUP_STEPS", 20))
-    warmdown_frac = float(os.environ.get("WARMDOWN_FRAC", 0.5))
+    # Training - T4 optimized defaults
+    iterations = int(os.environ.get("ITERATIONS", _T4_ITERATIONS))
+    train_batch_tokens = int(os.environ.get("TRAIN_BATCH_TOKENS", _T4_BATCH_TOKENS))
+    train_seq_len = int(os.environ.get("TRAIN_SEQ_LEN", _T4_SEQ_LEN))
+    grad_accum_steps = int(os.environ.get("GRAD_ACCUM_STEPS", _T4_GRAD_ACCUM))
+    max_wallclock_seconds = float(os.environ.get("MAX_WALLCLOCK_SECONDS", _T4_MAX_WALLCLOCK))
+    warmup_steps = int(os.environ.get("WARMUP_STEPS", 50))
+    warmdown_frac = float(os.environ.get("WARMDOWN_FRAC", 0.72))  # SOTA uses 0.72
     
     # Validation
     val_loss_every = int(os.environ.get("VAL_LOSS_EVERY", 50))
@@ -129,33 +137,33 @@ class H:
     logit_softcap = float(os.environ.get("LOGIT_SOFTCAP", 30.0))
     
     # Depth recurrence
-    num_loops = int(os.environ.get("NUM_LOOPS", 2))
+    num_loops = int(os.environ.get("NUM_LOOPS", 1))
     loop_start = int(os.environ.get("LOOP_START", 4))
     loop_end = int(os.environ.get("LOOP_END", 5))
     enable_looping_at = float(os.environ.get("ENABLE_LOOPING_AT", 0.5))
     
     # QK-Gain
-    qk_gain_init = float(os.environ.get("QK_GAIN_INIT", 4.0))
+    qk_gain_init = float(os.environ.get("QK_GAIN_INIT", 2.0))
     
-    # Optimizer
-    matrix_lr = float(os.environ.get("MATRIX_LR", 0.022))
-    scalar_lr = float(os.environ.get("SCALAR_LR", 0.02))
-    tied_embed_lr = float(os.environ.get("TIED_EMBED_LR", 0.03))
-    weight_decay = float(os.environ.get("WEIGHT_DECAY", 0.085))
+    # Optimizer - T4 tuned
+    matrix_lr = float(os.environ.get("MATRIX_LR", _T4_MATRIX_LR))
+    scalar_lr = float(os.environ.get("SCALAR_LR", 0.005))
+    tied_embed_lr = float(os.environ.get("TIED_EMBED_LR", 0.005))
+    weight_decay = float(os.environ.get("WEIGHT_DECAY", 0.095))  # SOTA uses 0.095
     muon_momentum = float(os.environ.get("MUON_MOMENTUM", 0.99))
     muon_backend_steps = int(os.environ.get("MUON_BACKEND_STEPS", 5))
     beta1 = float(os.environ.get("BETA1", 0.9))
     beta2 = float(os.environ.get("BETA2", 0.95))
     adam_eps = float(os.environ.get("ADAM_EPS", 1e-8))
-    grad_clip_norm = float(os.environ.get("GRAD_CLIP_NORM", 0.3))
-    ema_decay = float(os.environ.get("EMA_DECAY", 0.997))
+    grad_clip_norm = float(os.environ.get("GRAD_CLIP_NORM", 1.0))
+    ema_decay = float(os.environ.get("EMA_DECAY", 0.9965))  # SOTA uses 0.9965
     
     # Quantization
     matrix_clip_sigmas = float(os.environ.get("MATRIX_CLIP_SIGMAS", 12.85))
     embed_clip_sigmas = float(os.environ.get("EMBED_CLIP_SIGMAS", 20.0))
     
     # TTT
-    ttt_enabled = bool(int(os.environ.get("TTT_ENABLED", "1")))
+    ttt_enabled = bool(int(os.environ.get("TTT_ENABLED", "0")))
     ttt_lr = float(os.environ.get("TTT_LR", 0.005))
     ttt_epochs = int(os.environ.get("TTT_EPOCHS", 3))
 
@@ -214,7 +222,7 @@ def build_luts(sp, vocab_size, device):
 
 def compute_val_bpb(val_loss, val_tokens, base_bytes_lut, device):
     bits_per_token = val_loss / math.log(2)
-    val_subset = val_tokens[:32768].to(device)
+    val_subset = val_tokens[:32768].to(device).long()
     byte_count = base_bytes_lut[val_subset].sum().item()
     tokens_per_byte = val_subset.numel() / max(byte_count, 1)
     return bits_per_token * tokens_per_byte
@@ -239,7 +247,6 @@ def quantize_state_dict(state_dict):
             continue
         if "tok_emb" in name or "lm_head" in name:
             q, s = quantize_row(t, clip_std_mult=H.embed_clip_sigmas)
-            s = torch.tensor(s.item()) if hasattr(s, 'item') else s
         else:
             q, s = quantize_row(t, clip_std_mult=H.matrix_clip_sigmas)
         quantized[name] = q
@@ -296,7 +303,7 @@ class RMSNorm(nn.Module):
 
 class CastedLinear(nn.Linear):
     def forward(self, x):
-        return F.linear(x, self.weight.float(), self.bias.float() if self.bias else None)
+        return F.linear(x, self.weight.float(), self.bias.float() if self.bias is not None else None)
 
 class Rotary(nn.Module):
     def __init__(self, dim, base=10000.0, rope_dims=0):
@@ -419,8 +426,9 @@ class GPT(nn.Module):
         if H.tie_embeddings:
             nn.init.normal_(self.tok_emb.weight, std=0.005)
         for m in self.modules():
-            if isinstance(m, CastedLinear) and getattr(m, 'bias', None) is not None and m.bias.data.is_zero():
-                nn.init.zeros_(m.bias)
+            if isinstance(m, CastedLinear) and m.bias is not None:
+                if (m.bias.data == 0).all() or (m.bias.data.abs().sum() == 0):
+                    nn.init.zeros_(m.bias)
     
     def forward(self, x, target=None):
         x = self.tok_emb(x)
@@ -461,9 +469,27 @@ def train():
     
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA required")
-    device = torch.device("cuda:0")
+    
+    # Kaggle 2xT4: detect and configure multi-GPU
+    world_size = int(os.environ.get("WORLD_SIZE", torch.cuda.device_count()))
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    device = torch.device(f"cuda:{local_rank}")
     torch.cuda.set_device(device)
+    
+    # Initialize distributed for 2xT4
+    if world_size > 1:
+        if 'RANK' not in os.environ:
+            os.environ['RANK'] = '0'
+        if 'WORLD_SIZE' not in os.environ:
+            os.environ['WORLD_SIZE'] = str(world_size)
+        if 'MASTER_ADDR' not in os.environ:
+            os.environ['MASTER_ADDR'] = 'localhost'
+        if 'MASTER_PORT' not in os.environ:
+            os.environ['MASTER_PORT'] = '29500'
+        torch.distributed.init_process_group(backend="nccl")
+    
     torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
     
     os.makedirs("logs", exist_ok=True)
     logf = open(f"logs/{args.run_id}.txt", "w")
@@ -474,7 +500,8 @@ def train():
     
     log(f"PyTorch: {torch.__version__}")
     log(f"Run ID: {args.run_id}")
-    log(f"Device: {torch.cuda.get_device_name()}")
+    log(f"Device: {torch.cuda.get_device_name()} (rank {local_rank}/{world_size})")
+    log(f"T4 Optimized: batch={_T4_BATCH_TOKENS}, accum={_T4_GRAD_ACCUM}, iters={_T4_ITERATIONS}")
     
     # Download data
     log("[1/8] Downloading data...")
@@ -499,7 +526,7 @@ def train():
     
     # Model
     log("[4/8] Building model...")
-    model = GPT().to(device).bf16()
+    model = GPT().to(device).to(torch.bfloat16)
     for m in model.modules():
         if isinstance(m, CastedLinear):
             m.float()
@@ -507,28 +534,22 @@ def train():
     n_params = sum(p.numel() for p in model.parameters())
     log(f"Params: {n_params} ({n_params*2/1024/1024:.1f}MB bf16)")
     
-    # Optimizers
-    matrix_params = [p for p in model.parameters() if p.ndim == 2]
-    scalar_params = [p for p in model.parameters() if p.ndim < 2]
-    
-    opt_muon = MuonEqR(matrix_params, lr=args.matrix_lr, momentum=args.muon_momentum,
-                       backend_steps=args.muon_backend_steps, weight_decay=args.weight_decay)
-    opt_tok = torch.optim.AdamW([model.tok_emb.weight], lr=args.tied_embed_lr,
-                              betas=(args.beta1, args.beta2), weight_decay=args.weight_decay, fused=True)
-    opt_scalar = torch.optim.AdamW(scalar_params, lr=args.scalar_lr,
-                                   betas=(args.beta1, args.beta2), weight_decay=args.weight_decay, fused=True)
+    # Optimizers - use AdamW for all params to ensure stability
+    all_params = list(model.parameters())
+    opt = torch.optim.AdamW(all_params, lr=args.matrix_lr, betas=(args.beta1, args.beta2), 
+                            weight_decay=args.weight_decay, fused=True)
     
     # EMA
     ema_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
     
-    # Data loader
+    # Data loader - each GPU loads same data (embarrassingly parallel)
     train_stream = TokenStream(os.path.join(data_path, "fineweb_train_*.bin"))
     
     def get_batch():
         span = args.train_batch_tokens + 1
         chunk = train_stream.take(span)
-        x = chunk[:-1].reshape(-1, args.train_seq_len).to(device)
-        y = chunk[1:].reshape(-1, args.train_seq_len).to(device)
+        x = chunk[:-1].reshape(-1, args.train_seq_len).to(device).long()
+        y = chunk[1:].reshape(-1, args.train_seq_len).to(device).long()
         return x, y
     
     def lr_schedule(step, elapsed_ms):
@@ -560,8 +581,8 @@ def train():
             
             with torch.no_grad():
                 for i in range(0, min(val_tokens.numel() - 1, 32768), args.train_seq_len * 4):
-                    x = val_tokens[i:i+args.train_seq_len*4].to(device)
-                    y = val_tokens[i+1:i+1+args.train_seq_len*4].to(device)
+                    x = val_tokens[i:i+args.train_seq_len*4].to(device).long()
+                    y = val_tokens[i+1:i+1+args.train_seq_len*4].to(device).long()
                     with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                         loss = model(x, y)
                     val_loss_sum += loss.item() * x.numel()
@@ -591,23 +612,14 @@ def train():
         
         if grad_accum >= args.grad_accum_steps:
             scale = lr_schedule(step, elapsed)
-            for g in opt_muon.param_groups:
+            for g in opt.param_groups:
                 g["lr"] = args.matrix_lr * scale
-            for g in opt_tok.param_groups:
-                g["lr"] = args.tied_embed_lr * scale
-            for g in opt_scalar.param_groups:
-                g["lr"] = args.scalar_lr * scale
             
             if args.grad_clip_norm > 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
             
-            opt_muon.step()
-            opt_tok.step()
-            opt_scalar.step()
-            
-            opt_muon.zero_grad(set_to_none=True)
-            opt_tok.zero_grad(set_to_none=True)
-            opt_scalar.zero_grad(set_to_none=True)
+            opt.step()
+            opt.zero_grad(set_to_none=True)
             
             grad_accum = 0
             step += 1
@@ -649,8 +661,8 @@ def train():
             indices = torch.randperm(val_tokens.numel() - 1)[:32768]
             for start in range(0, len(indices), 32768):
                 chunk = indices[start:start+32768]
-                x = val_tokens[chunk].to(device)
-                y = val_tokens[chunk+1].to(device)
+                x = val_tokens[chunk].to(device).long()
+                y = val_tokens[chunk+1].to(device).long()
                 with torch.no_grad():
                     _ = model(x, y)
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
@@ -665,8 +677,8 @@ def train():
             val_loss_sum = 0.0
             val_token_count = 0
             for i in range(0, min(val_tokens.numel() - 1, 32768), args.train_seq_len * 4):
-                x = val_tokens[i:i+args.train_seq_len*4].to(device)
-                y = val_tokens[i+1:i+1+args.train_seq_len*4].to(device)
+                x = val_tokens[i:i+args.train_seq_len*4].to(device).long()
+                y = val_tokens[i+1:i+1+args.train_seq_len*4].to(device).long()
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     loss = model(x, y)
                 val_loss_sum += loss.item() * x.numel()

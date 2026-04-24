@@ -1,1 +1,2 @@
 {"type":"config","name":"Parameter Golf: Train best LM under 16MB","metricName":"val_bpb","metricUnit":"BPB","bestDirection":"lower"}
+{"type":"config","name":"Parameter Golf: T4-Optimized SOTA Run","metricName":"val_bpb","metricUnit":"BPB","bestDirection":"lower"}
