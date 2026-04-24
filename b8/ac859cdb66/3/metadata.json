@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "b8ac859cdb66",
+  "session_id": "019dc04c-2062-7ce0-8896-5a0c3e2cfc32",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-24T16:31:26.218935Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "train_kaggle.py"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "3dade8dfc32a",
+  "initial_attribution": {
+    "calculated_at": "2026-04-24T16:31:26.211527Z",
+    "agent_lines": 92,
+    "agent_removed": 38,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 92,
+    "total_lines_changed": 130,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
