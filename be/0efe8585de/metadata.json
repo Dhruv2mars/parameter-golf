@@ -19,6 +19,12 @@
       "transcript": "/be/0efe8585de/1/full.jsonl",
       "content_hash": "/be/0efe8585de/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/be/0efe8585de/2/metadata.json",
+      "transcript": "/be/0efe8585de/2/full.jsonl",
+      "content_hash": "/be/0efe8585de/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
