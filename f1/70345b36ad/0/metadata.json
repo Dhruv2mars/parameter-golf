@@ -1,0 +1,70 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "f170345b36ad",
+  "session_id": "019dc5c7-496c-717e-a158-99cb06642402",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-25T20:25:11.249577Z",
+  "branch": "autoresearch/phase1-20260426",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "autoresearch.jsonl",
+    "train_kaggle.py"
+  ],
+  "agent": "Pi",
+  "model": "minimax/MiniMax-M2.7",
+  "turn_id": "2452cb2f359b",
+  "checkpoint_transcript_start": 151,
+  "transcript_lines_at_start": 151,
+  "session_metrics": {
+    "turn_count": 74
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-25T20:25:11.239191Z",
+    "agent_lines": 2,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2,
+    "total_lines_changed": 3,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
