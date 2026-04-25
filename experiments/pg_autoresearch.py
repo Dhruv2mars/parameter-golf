@@ -19,7 +19,7 @@ REPO = Path(__file__).resolve().parents[1]
 WORK = REPO / "experiments" / "kaggle_work"
 OUT = REPO / "experiments" / "kaggle_results"
 STATE = REPO / "experiments" / "kaggle_state.json"
-DEFAULT_REF = "dhruv2mars/parameter-golf-t4x2-v5"
+DEFAULT_REF = "dhruv2mars/parameter-golf-t4-stable"
 
 
 @dataclass
