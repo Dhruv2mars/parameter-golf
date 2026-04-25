@@ -1,0 +1,13 @@
+wait, aint we decided to run it parallely?
+
+---
+
+check status
+
+---
+
+do sequentially, like you first did before. get us the stats of what works and what not. the goal is to find if our architecture is actually good or not. it will take 100 mins. like you original plan
+
+---
+
+so based on our long experimental run, what we found. keep in brief.
