@@ -347,7 +347,7 @@ class Attention(nn.Module):
         
         # Attention
         scale = self.head_dim ** -0.5
-        attn = torch.matmul(q * scale, k.transpose(-2, -1).float())
+        attn = torch.matmul(q * scale, k.transpose(-2, -1))
         causal = torch.triu(torch.ones(s, s, device=x.device, dtype=torch.bool), 1)
         attn = attn.masked_fill(causal, float("-inf"))
         attn = F.softmax(attn, dim=-1).to(q.dtype)
