@@ -1,6 +1,6 @@
 {
-  "id": "dhruv2mars/parameter-golf-t4-stable",
-  "title": "Parameter Golf T4 Stable",
+  "id": "dhruv2mars/parameter-golf-t4-ttt",
+  "title": "Parameter Golf T4 TTT",
   "code_file": "train_kaggle.py",
   "language": "python",
   "kernel_type": "script",
