@@ -1,0 +1,15 @@
+ok, the goal with the 10 min training runs was, so that we know whatever approach we are doing actually does the improvement.
+
+---
+
+no, i think you have drifted from the plan. remember what is our ultimate goal!
+
+---
+
+before that. we need to still be on the same page and be aboslutely clear about what we have to do. 
+
+first tell me, upon on our extreme regorous discussion, what final architecture did we decide for the model which will achieve sub-1 (probably, 0.5-0.6 bpb)?
+
+---
+
+yeah, just remember this. maybe put it somewhere in our docs, for your memory
