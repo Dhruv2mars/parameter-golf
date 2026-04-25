@@ -265,10 +265,10 @@ class RMSNorm(nn.Module):
 
 
 class CastedLinear(nn.Linear):
-    """Linear that casts weights to float32 for computation."""
+    """Linear that casts weights to match input dtype."""
     def forward(self, x):
-        return F.linear(x, self.weight.float(), 
-                        self.bias.float() if self.bias is not None else None)
+        return F.linear(x, self.weight.to(dtype=x.dtype), 
+                        self.bias.to(dtype=x.dtype) if self.bias is not None else None)
 
 
 class Rotary(nn.Module):
