@@ -1,0 +1,906 @@
+Your current **2.33 BPB** means the model is still in “toy LM / undertrained tiny transformer” territory. Getting from **2.33 → sub-1.0** on a **T4** is not a normal optimization problem. A plain tiny transformer trained from scratch on a T4 will probably not get there.
+
+From first principles, I would stop thinking:
+
+> “How do I train a tiny GPT better?”
+
+and instead think:
+
+> “How do I build a 16 MB text compressor that uses neural prediction only where it is worth it?”
+
+That means a **hybrid neural + statistical + memory model**, not a pure transformer.
+
+---
+
+# The core idea
+
+For sub-1 BPB, the model must exploit three kinds of structure:
+
+1. **Local byte/token patterns**
+   Example: `tion`, `ing`, ` the`, `.com`, HTML fragments, common boilerplate.
+
+2. **Medium-range phrase patterns**
+   Example: `according to`, `privacy policy`, `terms of service`, `published by`, news/web text patterns.
+
+3. **Longer semantic prediction**
+   Example: after “The company announced”, likely continuations depend on topic/context.
+
+A tiny transformer is weak at all three if trained from scratch on a T4.
+
+So I would build this:
+
+```text
+final predictor =
+  compressed n-gram/phrase model
+  + tiny recurrent transformer
+  + retrieval/logit-bias memory
+  + adaptive test-time cache
+  + learned mixture gate
+```
+
+Not one model. A tiny ensemble that fits in the artifact.
+
+---
+
+# Architecture I would build from scratch
+
+## 1. Byte/token hybrid tokenizer
+
+Do not blindly use BPE.
+
+Use a hybrid tokenizer:
+
+```text
+base units:
+  bytes
+  + frequent short substrings
+  + frequent word/phrase pieces
+```
+
+The tokenizer itself is part of compression.
+
+I would train a tokenizer specifically for BPB, not human-friendly tokens.
+
+Target vocab:
+
+```text
+2k, 4k, 8k sweep
+```
+
+But I would include special high-value pieces:
+
+```text
+" the"
+" of"
+" and"
+"ing"
+"tion"
+".com"
+"http"
+"https"
+"www"
+" according"
+" privacy"
+" copyright"
+```
+
+Why: FineWeb/web text has huge repeated boilerplate. Tokenizer should eat that cheaply.
+
+Final scoring is BPB, so tokenizer size only matters through artifact size and loss normalization.
+
+---
+
+## 2. Strong compressed n-gram model
+
+This is the most important part.
+
+Build a classical n-gram predictor:
+
+```text
+context: last 1–5 tokens or bytes
+output: top-k likely next tokens with log-prob biases
+```
+
+Store it as a compressed hash table.
+
+Example:
+
+```text
+hash(context) -> [(token_id, logit_bias), ...]
+```
+
+Budget:
+
+```text
+2–6 MB
+```
+
+This sounds old-school, but for a 16 MB limit it may beat neural parameters per byte.
+
+Why it matters:
+
+A lot of web text is locally predictable. A tiny neural net should not spend precious parameters learning `ing`, `tion`, ` the`, HTML fragments, and boilerplate. Let the table handle that.
+
+This is your **Micro-Engram / phrase memory**.
+
+---
+
+## 3. Tiny recurrent transformer core
+
+Use the neural model only for what the n-gram model cannot do.
+
+Something like:
+
+```text
+d_model: 384–512
+layers: 4–8 physical
+recurrent loops: 2–4
+heads: 6–8
+KV heads: 2–4
+context: 512–1024 tokens
+```
+
+But make it recurrent:
+
+```text
+stem block
+recurrent core block × N
+tail block
+```
+
+Example:
+
+```text
+embedding
+layer 0
+layer 1
+core layer 2
+core layer 3
+core layer 2
+core layer 3
+core layer 2
+core layer 3
+output
+```
+
+Same weights reused many times.
+
+Why: memory/bytes are the bottleneck, not compute. On T4, extra loops are slower, but still cheaper than storing more unique layers.
+
+---
+
+## 4. Learned mixture gate
+
+Do not simply add the n-gram and transformer logits equally.
+
+Train a tiny gate:
+
+```text
+gate = sigmoid(W * features)
+final_logits = gate * neural_logits + (1 - gate) * ngram_logits
+```
+
+Features can be cheap:
+
+```text
+n-gram confidence
+context length matched
+entropy of n-gram distribution
+current token type
+transformer hidden state small projection
+```
+
+The model should learn:
+
+* when n-gram memory is enough,
+* when neural model should override,
+* when both should blend.
+
+This is crucial.
+
+A strong n-gram table can be very good on common contexts but terrible on rare contexts. The gate prevents damage.
+
+---
+
+## 5. Adaptive test-time cache
+
+During validation/inference, maintain a cache from already-seen text:
+
+```text
+recent context -> next token counts
+```
+
+This is legal only if it updates **after scoring** the token, never before.
+
+This helps because documents repeat themselves:
+
+```text
+names
+URLs
+site-specific phrases
+article titles
+navigation text
+boilerplate
+```
+
+Cache predictor:
+
+```text
+hash(last n tokens) -> recent next-token counts
+```
+
+Blend it with:
+
+```text
+final = neural + static ngram + adaptive cache
+```
+
+This can give real BPB gains without training on H100s.
+
+---
+
+## 6. JEPA/STP auxiliary training
+
+Your T4 cannot brute-force train. So training must be data-efficient.
+
+Use:
+
+```text
+main loss: next-token CE
+aux 1: multi-token prediction t+2/t+4
+aux 2: hidden future prediction / STP-lite
+```
+
+Example:
+
+```text
+loss =
+  CE(t+1)
+  + 0.10 * CE(t+2)
+  + 0.05 * CE(t+4)
+  + 0.03 * hidden_future_loss
+```
+
+The auxiliary heads are training-only. Drop them from final artifact.
+
+Why: more useful learning per batch.
+
+---
+
+# The full predictor
+
+At each position:
+
+```text
+P_final =
+  mix(
+    P_transformer,
+    P_static_ngram,
+    P_adaptive_cache,
+    P_byte_fallback
+  )
+```
+
+Where:
+
+```text
+P_transformer      = tiny recurrent neural LM
+P_static_ngram     = compressed phrase/ngram memory
+P_adaptive_cache   = score-first online cache
+P_byte_fallback    = robust fallback for rare tokens/bytes
+```
+
+This is the architecture I would bet on for sub-1 under weak compute.
+
+---
+
+# Why this is better than pure transformer
+
+A pure tiny transformer has to learn everything:
+
+```text
+local spelling
+common words
+phrase patterns
+HTML/web boilerplate
+topic semantics
+long-range dependencies
+```
+
+A hybrid model splits the job:
+
+| Component           | Job                                   |
+| ------------------- | ------------------------------------- |
+| Tokenizer           | compress obvious repeated substrings  |
+| Static n-gram table | memorize frequent local patterns      |
+| Adaptive cache      | memorize current document repetition  |
+| Tiny transformer    | model broader context and uncertainty |
+| Mixture gate        | choose the right predictor            |
+
+This is more realistic on T4.
+
+---
+
+# Artifact budget
+
+For 16 MB, I would allocate roughly:
+
+```text
+Tokenizer/vocab:         0.3–1.0 MB
+Static n-gram memory:    2.0–6.0 MB
+Transformer weights:     7.0–10.0 MB
+Mixture/gates/cache code: 0.2–0.8 MB
+Compression overhead:    rest
+```
+
+A possible first target:
+
+```text
+Tokenizer:       0.5 MB
+N-gram memory:   4.0 MB
+Transformer:     10.5 MB
+Gates/misc:      0.5 MB
+Total:           ~15.5 MB
+```
+
+For your current score, I would probably overweight n-gram memory first because it gives faster gains than training a weak transformer longer.
+
+---
+
+# Training strategy on T4
+
+## Stage 1: build the statistical compressor first
+
+Before training the transformer, build:
+
+```text
+tokenizer
+n-gram table
+adaptive cache evaluator
+mixture baseline
+```
+
+You should be able to get a big BPB drop without a serious neural model.
+
+Target:
+
+```text
+2.33 -> maybe 1.7–1.4
+```
+
+depending on how bad the current model is.
+
+## Stage 2: train tiny transformer against residual errors
+
+Do not train the transformer as the only predictor.
+
+Train it with the n-gram predictor present.
+
+The model should learn:
+
+```text
+what the n-gram model gets wrong
+```
+
+This is important.
+
+Loss:
+
+```text
+CE(final_mixture_logits, target)
+```
+
+not only:
+
+```text
+CE(transformer_logits, target)
+```
+
+You can optionally add transformer-only CE as an auxiliary.
+
+## Stage 3: distill from a larger model
+
+This is the biggest compute shortcut.
+
+On T4, from-scratch CE training is weak. So use a larger teacher offline/API/local if allowed by your rules.
+
+Train student on:
+
+```text
+hard labels: actual next token
+soft labels: teacher top-k logits
+```
+
+You do not need full teacher logits. Store top-k only:
+
+```text
+top 16 or top 32 next-token candidates
+```
+
+Distillation loss:
+
+```text
+loss = CE(student, true_token)
+     + alpha * KL(student_topk, teacher_topk)
+```
+
+This teaches smoother distributions faster than raw CE.
+
+For BPB, soft distributions matter because compression depends on calibrated probabilities.
+
+## Stage 4: quantization-aware training
+
+Do not train FP32 then crush it.
+
+Use fake quantization or periodic quantization from mid-training onward:
+
+```text
+int8 embeddings
+int6/int5 transformer matrices
+int4/ternary n-gram values if possible
+```
+
+Goal:
+
+```text
+final model performs well after compression
+```
+
+not before compression.
+
+---
+
+# The sub-1 path
+
+To get sub-1, I think you need these milestones:
+
+## Milestone 1: classical memory gets you below 2.0
+
+If n-gram/static memory does not move you from 2.33 to below 2.0, implementation is wrong.
+
+## Milestone 2: hybrid model gets below 1.5
+
+N-gram + tiny transformer + gate should beat either alone.
+
+## Milestone 3: distillation gets below 1.25
+
+A T4-trained small model needs a teacher. Without teacher signal, it may not learn enough distributional structure.
+
+## Milestone 4: adaptive cache + TTT gets below 1.15
+
+Document-local repetition and score-first adaptation can give meaningful gains.
+
+## Milestone 5: sub-1 requires one breakthrough
+
+Likely one of:
+
+```text
+excellent compressed phrase memory
+teacher distillation
+very good tokenizer
+strong adaptive cache
+or eval-time adaptation that is unusually effective
+```
+
+Sub-1 from pure T4 training without distillation/memory is extremely unlikely.
+
+---
+
+# What I would implement first
+
+Not the transformer.
+
+I would implement this first:
+
+```text
+1. tokenizer sweep
+2. static n-gram table
+3. adaptive cache
+4. mixture evaluator
+```
+
+Because this gives fast feedback.
+
+## Minimal version
+
+```python
+final_logits =
+    neural_logits
+  + lambda_ngram * ngram_biases
+  + lambda_cache * cache_biases
+```
+
+Start with fixed lambdas.
+
+Then train the gate later.
+
+---
+
+# N-gram table design
+
+Use multiple orders:
+
+```text
+unigram
+bigram
+trigram
+4-gram
+5-gram
+```
+
+But do not store everything.
+
+Store only high-value contexts:
+
+```text
+frequent enough
+low entropy
+strong next-token preference
+good validation gain per byte
+```
+
+For each context, store:
+
+```text
+top-k next tokens
+quantized log-probs
+```
+
+Example entry:
+
+```text
+hash(context): [
+  token_id_1, qlogp_1,
+  token_id_2, qlogp_2,
+  token_id_3, qlogp_3,
+  token_id_4, qlogp_4
+]
+```
+
+Keep `k` tiny:
+
+```text
+k = 2, 4, 8
+```
+
+The table should not be a database. It should be a compressed predictor.
+
+Selection score:
+
+```text
+value(context) =
+  frequency * entropy_reduction / bytes_used
+```
+
+Only keep the best contexts.
+
+This is how you make it artifact-efficient.
+
+---
+
+# Adaptive cache design
+
+During eval:
+
+```text
+for each token:
+  1. predict token using current cache
+  2. score token
+  3. update cache with that token
+```
+
+Use:
+
+```text
+recent window counts
+decay older counts
+top-k only
+```
+
+Cache does not need to be saved in artifact. It is runtime state.
+
+This is huge because web pages repeat entities and phrases.
+
+---
+
+# Transformer design
+
+Keep it boring but recurrent.
+
+Suggested starter:
+
+```text
+vocab: 4096 or 8192
+d_model: 384
+n_layers: 6 physical
+recurrent core: 2 layers repeated 3 times
+heads: 6
+kv_heads: 2
+context: 512
+mlp ratio: 2.5–3.0
+activation: SwiGLU or squared ReLU
+norm: RMSNorm
+pos: RoPE or ALiBi
+```
+
+Then compress:
+
+```text
+embeddings: int8 / factorized
+attention: int6
+MLP: int5/int6
+gates/norms: fp16/int16
+```
+
+If artifact has room, increase `d_model` before increasing unique layers. Recurrence gives depth cheaper.
+
+---
+
+# Distillation setup
+
+This is probably mandatory for your compute situation.
+
+Use a teacher to produce top-k distributions on training text.
+
+Store compact records:
+
+```text
+position target_token teacher_topk_ids teacher_topk_logprobs
+```
+
+You do not need every token. Sample.
+
+Train student to match:
+
+```text
+true next token
+teacher distribution
+n-gram/teacher disagreement areas
+```
+
+Over-sample hard positions where:
+
+```text
+n-gram model is uncertain
+or current student is wrong
+or teacher entropy is low but student misses
+```
+
+That gives much better compute efficiency than random token training.
+
+---
+
+# The “from first principles” formula
+
+The objective is not:
+
+```text
+minimize CE(model)
+```
+
+It is:
+
+```text
+minimize validation BPB
+subject to:
+  artifact <= 16 MB
+  train compute limited
+  eval legal
+```
+
+So every component should justify itself by:
+
+```text
+BPB gain / artifact byte
+BPB gain / training second
+BPB gain / eval second
+```
+
+That means a 1 MB n-gram table that improves BPB by `0.05` is better than a 1 MB neural layer that improves BPB by `0.01`.
+
+This is the mindset shift.
+
+---
+
+# What I would not do
+
+## Do not start with MoE
+
+MoE lowers active params, not artifact size. Bad first move.
+
+## Do not start with 1-bit
+
+Ternary/binary may help later, but at 2.33 BPB your issue is not bit-packing. Your issue is predictive quality.
+
+## Do not start with DeepSeek V4 attention
+
+CSA/HCA is for long-context compute. You need compression quality first.
+
+## Do not train a pure tiny transformer from scratch
+
+On T4, it will probably plateau far above the target.
+
+## Do not chase sub-1 immediately
+
+First get:
+
+```text
+2.33 -> 1.8 -> 1.5 -> 1.25 -> 1.1
+```
+
+Each regime has different bottlenecks.
+
+---
+
+# My recommended implementation roadmap
+
+## Step 1: diagnostic evaluator
+
+Build a BPB evaluator that can score separately:
+
+```text
+transformer-only BPB
+n-gram-only BPB
+cache-only BPB
+hybrid BPB
+```
+
+Without this, you are blind.
+
+## Step 2: tokenizer + n-gram model
+
+Goal:
+
+```text
+beat current 2.33 without neural changes
+```
+
+## Step 3: static hybrid
+
+Use:
+
+```text
+final_logits = transformer_logits + ngram_bias + cache_bias
+```
+
+Tune lambdas.
+
+## Step 4: train gate
+
+Replace fixed lambdas with learned gate.
+
+## Step 5: recurrent transformer
+
+Train with:
+
+```text
+CE + MTP + JEPA/STP-lite
+```
+
+## Step 6: distillation
+
+Use teacher top-k.
+
+## Step 7: quantization-aware compression
+
+Optimize actual compressed artifact.
+
+## Step 8: legal test-time adaptation
+
+Update only:
+
+```text
+cache
+gate
+LayerNorm scales
+loop gates
+tiny adapters
+```
+
+---
+
+# Final answer
+
+If I were building from scratch for your setup, the approach would be:
+
+```text
+A compressed hybrid language compressor:
+
+1. BPB-optimized tokenizer
+2. high-value compressed n-gram/phrase table
+3. score-first adaptive runtime cache
+4. tiny recurrent transformer
+5. learned mixture gate
+6. MTP + JEPA/STP auxiliary training
+7. teacher distillation
+8. compression-aware quantization
+9. restricted legal TTT
+```
+
+The most important insight:
+
+> Sub-1 on T4 will not come from a better tiny GPT. It needs a hybrid compressor where the neural model only handles what lookup, cache, and tokenization cannot.
+
+That is the first-principles path.
+
+
+grill-me on this. from a very fundamental approach, tell me how good/bad this approach is. considering our curren situation and setup constraints.
+
+---
+
+First checkout but has been in the recent commits. And what has been the changes and the approaches that is currently being implemented in the repo. Tell me honestly without any filters is reaching sub 1 technically possible with whatever you can think of? on our setup of t4 GPUs?
+
+---
+
+"Sub-1: would require something not yet in repo" - this is key! thinking  from what has not been done, entirely new from a fundamental perspective from scratch. 
+Our ultimate goal is to achieve sub-1 while training on T4 GPUs only. We have to think from a very different and fundamental POV. Though we can still workaround with the total training time to be under 10 minutes that can be over that.
+
+Open PRs that have not been merged yet in Actual repo. The all the PRs, in fact, and check out what all different methods people are using and how much BPB they are getting. 
+
+um about the approaches and the architecture that we should be building.
+
+---
+
+<skill name="grill-me" location="/Users/dhruv2mars/.pi/agent/skills/grill-me/SKILL.md">
+References are relative to /Users/dhruv2mars/.pi/agent/skills/grill-me.
+
+Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+
+Ask the questions one at a time.
+
+If a question can be answered by exploring the codebase, explore the codebase instead.
+</skill>
+
+---
+
+<skill name="grill-me" location="/Users/dhruv2mars/.pi/agent/skills/grill-me/SKILL.md">
+References are relative to /Users/dhruv2mars/.pi/agent/skills/grill-me.
+
+Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+
+Ask the questions one at a time.
+
+If a question can be answered by exploring the codebase, explore the codebase instead.
+</skill>
+
+nd I don't know a way to find that out, to be honest. I just want our architecture to be changed and redone from very scratch so that we can achieve sub 1 bpb.
+
+---
+
+Also for your added context, you need to know that our training runs happens on Kaggle and Kaggle gives us two T4 GPUs.
+
+---
+
+are always available and the hard limit for continuous training run on a single notebook is twelve hours and the weekly limit for the GPU quota on Kaggle is thirty hours a week. stuff that may be in the repo so that you can have a clear context about what has been done till now in terms of training time and experiments.
+
+---
+
+I have no idea about the curve.
+
+---
+
+I don't know, but it is good that it should be Enabled. Also another question from you, We have the GPUs on Kaggle, so the training runs can be as long as possible or in parallel, however, you want. I have no restrictions on that part. But do tell me if in future I do get the hands on the H100s, so our current training implementation that we will do, will that be easily applicable to those cards as well, or do we have to change a few things down?
+
+---
+
+We just need to build the best language model that Achieves our goal of sub one BPB, And it also has to be under 16 NBs that I feel you know already.
+
+---
+
+You are a much better machine learning engineer and a researcher than me, so it's your call and your decision making to choose the best design decisions, technical logic and architecture.
+
+---
+
+few things:
+- Our training pipeline is not stable at all, if we want to train for long hours, like twelve hours, we have to make it very very extremely stable so that during the long running sessions, it doesnt become useless coz of something breaking/ errors/ etc. 
+- Also, before going into a full-fledged final full skill training session of multiple hours, we have to make sure that our thought process and whatever we are doing is actually making an improvement. So to check that and to be incrementally improving, we should do a limit of ten minutes runs. Basically, the training cannot exceed ten minutes. After each cycle of ten minute training, we will see if it performed well or not. Based on that, we will incrementally move forward. It's like hill climbing. 
+
+Your thoughts on the above?
+
+---
+
+Yes, the first task should absolutely be to make the training pipeline robust and absolutely stable. Also, focus on cleaning up and removing any dead code and parts that are unwanted. basically, a repo wide cleanup and update.
+
+---
+
+Yeah, go ahead with the repo cleanup first, then making sure that our training pipeline and the workflow is extremely stable. Commit after making the changes.As always.

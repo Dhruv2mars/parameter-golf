@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "ac3317acab9d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 8,
+  "files_touched": [
+    ".gitignore",
+    "PROGRESS.md",
+    "kernel-metadata.json",
+    "run_train.sh",
+    "train_kaggle.py",
+    "upload_kaggle.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ac/3317acab9d/0/metadata.json",
+      "transcript": "/ac/3317acab9d/0/full.jsonl",
+      "content_hash": "/ac/3317acab9d/0/content_hash.txt",
+      "prompt": "/ac/3317acab9d/0/prompt.txt"
+    }
+  ]
+}
