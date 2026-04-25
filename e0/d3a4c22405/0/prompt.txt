@@ -1,0 +1,5 @@
+yes
+
+---
+
+yes. and after each run, give me the stats, what at what bpb are we at
