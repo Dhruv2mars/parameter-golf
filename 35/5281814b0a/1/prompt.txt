@@ -1,0 +1,96 @@
+how do i use the pi-autoresearch extension?
+
+---
+
+ok, great. so i want to use this extension and start an autoresearch loop. currently, we are working towards making our model score better on bpb leaderboard ranking, for parameter-golf challenge from openai. 
+
+OUR ULTIMATE GOAL IS: building the best language model that fits under 16mb. and it bpb is sub 1, ideally in the range of 0.5-0.6. 
+
+Currently our architecture that we decided is okay-ish. with the hope that it will achieve our goal. considering we do these 3 things:
+1. extend the training time
+2. add TTT
+3. add PPM hybrid
+
+OUR SETUP: we use kaggle for training. where we utilize 2x t4 gpus. where we have no limits on compute and resources, 30hrs of gpu quota. and max session run is 12hrs. 
+
+
+NOW, what i want with autoresearch is to make sure that our model achieve its ultimate goal (sub-1, ideally 0.5-0.6 bpb). 
+
+
+whats your thoughts about this?? the autoresearch setup?? use /grill-me skill.
+
+---
+
+you should checkout the whole repo, you will find much more info and context. 
+
+- current ~2.65 bpb on 10 min training run.
+
+---
+
+i have not done extended training yet.
+
+---
+
+its upon you how long you want the training run to be. i have only done mostly 10 min runs, and few 20 min runs. note, that in past experience, doing things parallely didnt go well. also, you have to keep monitoring the runs, so that you get to know instantly when you get any results or error. mostly, our training pipeline is decent in terms of reliability, at least in my experience till now.
+
+---
+
+i dont know what to answer here honestly.
+
+---
+
+yes
+
+---
+
+you need to think this yourself. coz to me, entended training (upwards of 6 hrs) will have meaningful improvemnets. but that doesnt help in autoresearch, coz there is no point if a single ietration is 6 hrs.
+
+---
+
+no idea how much.
+
+---
+
+according to my thinking and understanding, we will need ttt and ppm to get sub 1.
+
+---
+
+no, idea. i dont think it works right now.
+
+---
+
+okay, but are we just using autoreasrch for ttt optimisation. our goal was to get sub-1
+
+---
+
+i need autoresearch to find the best model approach (architecture, tts, ppm, etc etc) which gives us the best bpb in 30 min training runs. our best run which will have the best score, we will then do a extended training run on it. 
+
+we dont have to start from scratch even, our architecture and decsions are already at decent levels.
+
+---
+
+no idea. havent run 30 min run.
+
+---
+
+do a 30 min run to get actual bpb. and for your info, we NEED ppm and tts. so after that, jump into autoresearch.
+
+---
+
+do for 30 min run. match iterations for 30 min. 
+
+what will you do after that?
+
+---
+
+yeah yeah. i am happy with your plan. now give me the summary of what will you do and happen
+
+---
+
+okay, wonderful. 
+
+go ahead, and start with phase 1, continue to phase 2, then 3, then 4, then 5. You have to keep going until you have the best config from autoresearch and the time comes to do extended run. DO NOT STOP BEFORE THAT.
+
+NOTE: regarding the total iterations in autoresearch, do unlimited. autoresearch should keep on running until i manually tell you to stop it. 
+
+GO AHEAD!!! HAIL MAINLAND CHINA!! GO FULL BONKERS!
