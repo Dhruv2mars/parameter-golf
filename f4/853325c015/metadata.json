@@ -1,0 +1,20 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "f4853325c015",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 18,
+  "files_touched": [
+    "experiments/arch_verifier.py",
+    "kernel-metadata.json",
+    "run_train_ttt.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/853325c015/0/metadata.json",
+      "transcript": "/f4/853325c015/0/full.jsonl",
+      "content_hash": "/f4/853325c015/0/content_hash.txt",
+      "prompt": "/f4/853325c015/0/prompt.txt"
+    }
+  ]
+}

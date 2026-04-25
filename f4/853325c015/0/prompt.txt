@@ -1,0 +1,73 @@
+ok, the goal with the 10 min training runs was, so that we know whatever approach we are doing actually does the improvement.
+
+---
+
+no, i think you have drifted from the plan. remember what is our ultimate goal!
+
+---
+
+before that. we need to still be on the same page and be aboslutely clear about what we have to do. 
+
+first tell me, upon on our extreme regorous discussion, what final architecture did we decide for the model which will achieve sub-1 (probably, 0.5-0.6 bpb)?
+
+---
+
+yeah, just remember this. maybe put it somewhere in our docs, for your memory
+
+---
+
+no, not yet. 
+
+so, till now we have decided upon an architecture that we think theoretically will achieve our end goal. but are you sure? whats the verification of that?
+
+---
+
+yeah. we first need to atleast verify that our plan is good or not. 
+
+another thing, whats our training recipe?
+
+---
+
+okay, so we have 2 things that we need to be sure of. first, if our architecture is even good, we need verification for our choices and if they actually make a improvement. second, our training recipe, for 2x t4 GPUs. 
+
+whats your plan for the above two? 
+
+if you ask me, i would say that we do things in parallel. where, we run multiple notebooks with our architecture decisions for 10 min runs, so that we can find out in 10 min if everything is great or not (utlizing parallelism a lot, since we have a lot of quota left). since, its a fact that bad choice will show its colors even in 10 mins. 
+
+your thoughts? your take?? since you are the best ML researcher and engg. a lot better than me
+
+---
+
+lets not diverge and loose focus on 2 things. first, just focus on our model (architecture). run multiple (many many parallel runs) sessions of 10 mins, the goal is to verify if our arhcitecutre choice is actually good or not, will it make us reach the sub-1 bpb goal. 
+
+by this approach, after just 10 mins (since all runs are of 10 min running in parallel), we will know the stats and if our decision was right and have all the data. 
+
+/grill-me
+
+---
+
+do things seperately but in parallel. all i wanna know is, if our architecture will take us in 0.5-0.6 bpb range.
+
+---
+
+you are getting it right overall. but see, our goal right now is, the architecture that we decided (see md file), its theoretical, we need to know if it will actually work or not. coz there is no point in running a 20 hr training session just to find that it didnt help. its a verification stage right now.
+
+---
+
+loss curve should be good for this, dont you think? checkout autoresearch repo from karpathy, how does it do it?
+
+---
+
+will loss curve help in our case?
+
+---
+
+yeah, then go ahead with A. but tell me, should we setup autoresearch to do this, or you are fine without it as well>?
+
+---
+
+ok, give me the final summary of what we are about to do.
+
+---
+
+yeah, do all of it. once you are done, you have to tell me, if your architecture decision was right or not. go ahead.
