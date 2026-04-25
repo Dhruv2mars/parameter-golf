@@ -1,0 +1,72 @@
+[
+  {
+    "name": "a1_baseline",
+    "bpb": null,
+    "steps": 0,
+    "desc": "Reference",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a2_small",
+    "bpb": null,
+    "steps": 0,
+    "desc": "Smaller dim",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a3_large",
+    "bpb": null,
+    "steps": 0,
+    "desc": "Larger dim",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a4_8l",
+    "bpb": null,
+    "steps": 0,
+    "desc": "Fewer layers",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a5_15l",
+    "bpb": null,
+    "steps": 0,
+    "desc": "More layers",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a6_vocab4k",
+    "bpb": null,
+    "steps": 0,
+    "desc": "Vocab 4K",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a7_vocab1k",
+    "bpb": null,
+    "steps": 0,
+    "desc": "Vocab 1K",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a8_no_rec",
+    "bpb": null,
+    "steps": 0,
+    "desc": "No recurrence",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a9_qk4",
+    "bpb": null,
+    "steps": 0,
+    "desc": "QK=4",
+    "status": "UNKNOWN"
+  },
+  {
+    "name": "a10_qk6",
+    "bpb": null,
+    "steps": 0,
+    "desc": "QK=6",
+    "status": "UNKNOWN"
+  }
+]

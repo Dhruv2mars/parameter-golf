@@ -1,0 +1,15 @@
+{
+  "id": "dhruv2mars/pg-arch-9b53629a1db1f4c77440",
+  "title": "PG Arch a1_baseline",
+  "code_file": "run_kernel.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

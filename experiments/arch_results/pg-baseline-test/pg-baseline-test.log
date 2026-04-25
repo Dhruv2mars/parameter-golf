@@ -1,0 +1,118 @@
+[{"stream_name":"stderr","time":8.884298544,"data":"\n"}
+,{"stream_name":"stderr","time":8.88436216,"data":"*****************************************\n"}
+,{"stream_name":"stderr","time":8.884367025,"data":"Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. \n"}
+,{"stream_name":"stderr","time":8.88437137,"data":"*****************************************\n"}
+,{"stream_name":"stderr","time":9.379801624,"data":"[W425 14:14:31.919949374 socket.cpp:207] [c10d] The hostname of the client socket cannot be retrieved. err=-3\n"}
+,{"stream_name":"stderr","time":11.744369588,"data":"[W425 14:14:33.284528745 socket.cpp:207] [c10d] The hostname of the client socket cannot be retrieved. err=-3\n"}
+,{"stream_name":"stderr","time":11.747501824,"data":"[W425 14:14:33.287615752 socket.cpp:207] [c10d] The hostname of the client socket cannot be retrieved. err=-3\n"}
+,{"stream_name":"stdout","time":11.748524456,"data":"============================================================\n"}
+,{"stream_name":"stdout","time":11.748554872,"data":"Parameter Golf - T4 Training\n"}
+,{"stream_name":"stdout","time":11.748560724,"data":"Run ID: baseline\n"}
+,{"stream_name":"stdout","time":11.748800076,"data":"Device: Tesla T4 (rank 0/2)\n"}
+,{"stream_name":"stdout","time":11.748828412,"data":"PyTorch: 2.10.0+cu128\n"}
+,{"stream_name":"stdout","time":11.748834794,"data":"============================================================\n"}
+,{"stream_name":"stdout","time":11.748840466,"data":"[1/6] Downloading data...\n"}
+,{"stream_name":"stdout","time":12.164616927,"data":"Downloading tokenizer...Downloading tokenizer...\n"}
+,{"stream_name":"stdout","time":12.164640236,"data":"\n"}
+,{"stream_name":"stdout","time":13.907090621,"data":"Downloaded: /tmp/fineweb-pg/tokenizers/fineweb_8192_bpe.model\n"}
+,{"stream_name":"stdout","time":13.927614325,"data":"Downloaded: /tmp/fineweb-pg/tokenizers/fineweb_8192_bpe.model\n"}
+,{"stream_name":"stdout","time":15.12864156,"data":"Downloaded: fineweb_val_000000.binDownloaded: fineweb_val_000000.bin\n"}
+,{"stream_name":"stdout","time":15.128665448,"data":"\n"}
+,{"stream_name":"stderr","time":15.198116528,"data":"Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.\n"}
+,{"stream_name":"stdout","time":17.481292678,"data":"Downloaded: fineweb_train_000000.bin\n"}
+,{"stream_name":"stdout","time":17.482039468,"data":"Downloaded: fineweb_train_000000.bin\n"}
+,{"stream_name":"stderr","time":17.549745943,"data":"Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.\n"}
+,{"stream_name":"stdout","time":20.602873221,"data":"Downloaded: fineweb_train_000001.bin\n"}
+,{"stream_name":"stdout","time":20.604106479,"data":"Downloaded: fineweb_train_000001.bin\n"}
+,{"stream_name":"stdout","time":20.604123139,"data":"[2/6] Loading tokenizer...\n"}
+,{"stream_name":"stdout","time":20.884528741,"data":"Val tokens: 40,540,803\n"}
+,{"stream_name":"stdout","time":21.02114107,"data":"[3/6] Building model...\n"}
+,{"stream_name":"stdout","time":27.337086067,"data":"Params: 35,993,176 (68.7 MB bf16)\n"}
+,{"stream_name":"stdout","time":27.482369991,"data":"[4/6] Training...\n"}
+,{"stream_name":"stdout","time":29.358683186,"data":"step:1/2500 train_loss:9.0174 time:0s\n"}
+,{"stream_name":"stdout","time":30.453212014,"data":"step:2/2500 train_loss:9.0050 time:2s\n"}
+,{"stream_name":"stdout","time":31.545565595,"data":"step:3/2500 train_loss:9.0089 time:3s\n"}
+,{"stream_name":"stdout","time":32.64152447,"data":"step:4/2500 train_loss:8.9978 time:4s\n"}
+,{"stream_name":"stdout","time":33.739146973,"data":"step:5/2500 train_loss:8.9647 time:5s\n"}
+,{"stream_name":"stdout","time":34.838763494,"data":"step:6/2500 train_loss:8.9436 time:6s\n"}
+,{"stream_name":"stdout","time":35.943307499,"data":"step:7/2500 train_loss:8.8973 time:7s\n"}
+,{"stream_name":"stdout","time":37.044756384,"data":"step:8/2500 train_loss:8.8556 time:8s\n"}
+,{"stream_name":"stdout","time":38.151078741,"data":"step:9/2500 train_loss:8.7979 time:10s\n"}
+,{"stream_name":"stdout","time":39.2518257,"data":"step:10/2500 train_loss:8.7546 time:11s\n"}
+,{"stream_name":"stderr","time":84.46379785,"data":"/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.\n"}
+,{"stream_name":"stderr","time":84.463850003,"data":"  return func(*args, **kwargs)\n"}
+,{"stream_name":"stdout","time":96.825394285,"data":"step=50 val_loss=7.1969 val_bpb=3.3388 best_bpb=3.3388 elapsed_s=57\n"}
+,{"stream_name":"stdout","time":96.825461419,"data":"METRIC step=50\n"}
+,{"stream_name":"stdout","time":96.825467486,"data":"METRIC val_loss=7.1969\n"}
+,{"stream_name":"stdout","time":96.825472329,"data":"METRIC val_bpb=3.3388\n"}
+,{"stream_name":"stdout","time":96.825477171,"data":"METRIC best_bpb=3.3388\n"}
+,{"stream_name":"stdout","time":96.825481929,"data":"METRIC elapsed_s=57\n"}
+,{"stream_name":"stdout","time":97.647041779,"data":"[CKPT] Best checkpoint saved\n"}
+,{"stream_name":"stdout","time":159.945438087,"data":"step:100/2500 train_loss:6.5427 time:131s\n"}
+,{"stream_name":"stdout","time":172.520136353,"data":"step=100 val_loss=6.4966 val_bpb=3.0139 best_bpb=3.0139 elapsed_s=132\n"}
+,{"stream_name":"stdout","time":172.520182297,"data":"METRIC step=100\n"}
+,{"stream_name":"stdout","time":172.5201883,"data":"METRIC val_loss=6.4966\n"}
+,{"stream_name":"stdout","time":172.520192675,"data":"METRIC val_bpb=3.0139\n"}
+,{"stream_name":"stdout","time":172.52019696,"data":"METRIC best_bpb=3.0139\n"}
+,{"stream_name":"stdout","time":172.520201823,"data":"METRIC elapsed_s=132\n"}
+,{"stream_name":"stdout","time":173.107120678,"data":"[CKPT] Best checkpoint saved\n"}
+,{"stream_name":"stdout","time":247.851129528,"data":"step=150 val_loss=6.2041 val_bpb=2.8782 best_bpb=2.8782 elapsed_s=208\n"}
+,{"stream_name":"stdout","time":247.851168096,"data":"METRIC step=150\n"}
+,{"stream_name":"stdout","time":247.851174265,"data":"METRIC val_loss=6.2041\n"}
+,{"stream_name":"stdout","time":247.85117892,"data":"METRIC val_bpb=2.8782\n"}
+,{"stream_name":"stdout","time":247.851183621,"data":"METRIC best_bpb=2.8782\n"}
+,{"stream_name":"stdout","time":247.851187968,"data":"METRIC elapsed_s=208\n"}
+,{"stream_name":"stdout","time":248.441060962,"data":"[CKPT] Best checkpoint saved\n"}
+,{"stream_name":"stdout","time":310.741571472,"data":"step:200/2500 train_loss:6.1623 time:282s\n"}
+,{"stream_name":"stdout","time":323.243737239,"data":"step=200 val_loss=6.0213 val_bpb=2.7934 best_bpb=2.7934 elapsed_s=283\n"}
+,{"stream_name":"stdout","time":323.243770116,"data":"METRIC step=200\n"}
+,{"stream_name":"stdout","time":323.243775909,"data":"METRIC val_loss=6.0213\n"}
+,{"stream_name":"stdout","time":323.243780517,"data":"METRIC val_bpb=2.7934\n"}
+,{"stream_name":"stdout","time":323.243785171,"data":"METRIC best_bpb=2.7934\n"}
+,{"stream_name":"stdout","time":323.243789794,"data":"METRIC elapsed_s=283\n"}
+,{"stream_name":"stdout","time":323.910566095,"data":"[CKPT] Best checkpoint saved\n"}
+,{"stream_name":"stdout","time":398.7661926,"data":"step=250 val_loss=5.9211 val_bpb=2.7469 best_bpb=2.7469 elapsed_s=359\n"}
+,{"stream_name":"stdout","time":398.766239552,"data":"METRIC step=250\n"}
+,{"stream_name":"stdout","time":398.766245384,"data":"METRIC val_loss=5.9211\n"}
+,{"stream_name":"stdout","time":398.766250304,"data":"METRIC val_bpb=2.7469\n"}
+,{"stream_name":"stdout","time":398.76625509,"data":"METRIC best_bpb=2.7469\n"}
+,{"stream_name":"stdout","time":398.76625993,"data":"METRIC elapsed_s=359\n"}
+,{"stream_name":"stdout","time":399.437734024,"data":"[CKPT] Best checkpoint saved\n"}
+,{"stream_name":"stdout","time":461.889610934,"data":"step:300/2500 train_loss:5.9744 time:433s\n"}
+,{"stream_name":"stdout","time":474.324428876,"data":"step=300 val_loss=5.8158 val_bpb=2.6980 best_bpb=2.6980 elapsed_s=434\n"}
+,{"stream_name":"stdout","time":474.32446701,"data":"METRIC step=300\n"}
+,{"stream_name":"stdout","time":474.324472792,"data":"METRIC val_loss=5.8158\n"}
+,{"stream_name":"stdout","time":474.324477375,"data":"METRIC val_bpb=2.6980\n"}
+,{"stream_name":"stdout","time":474.324481854,"data":"METRIC best_bpb=2.6980\n"}
+,{"stream_name":"stdout","time":474.324486752,"data":"METRIC elapsed_s=434\n"}
+,{"stream_name":"stdout","time":474.993902117,"data":"[CKPT] Best checkpoint saved\n"}
+,{"stream_name":"stdout","time":549.810749369,"data":"step=350 val_loss=5.7129 val_bpb=2.6503 best_bpb=2.6503 elapsed_s=510\n"}
+,{"stream_name":"stdout","time":549.810792094,"data":"METRIC step=350\n"}
+,{"stream_name":"stdout","time":549.810798441,"data":"METRIC val_loss=5.7129\n"}
+,{"stream_name":"stdout","time":549.81080332,"data":"METRIC val_bpb=2.6503\n"}
+,{"stream_name":"stdout","time":549.810808388,"data":"METRIC best_bpb=2.6503\n"}
+,{"stream_name":"stdout","time":549.810831091,"data":"METRIC elapsed_s=510\n"}
+,{"stream_name":"stdout","time":550.491158231,"data":"[CKPT] Best checkpoint saved\n"}
+,{"stream_name":"stdout","time":598.799114091,"data":"Wallclock limit reached at step 389\n"}
+,{"stream_name":"stdout","time":598.799146135,"data":"[4/6] Training complete. Best val_bpb: 2.6503\n"}
+,{"stream_name":"stdout","time":600.28694449,"data":"[5/6] Saving final model...\n"}
+,{"stream_name":"stdout","time":676.88909057,"data":"Compressed artifact: 10,050,419 bytes\n"}
+,{"stream_name":"stdout","time":676.889150658,"data":"Code size: 38,727 bytes\n"}
+,{"stream_name":"stdout","time":676.88915764,"data":"Total: 10,089,146 bytes (limit: 16,000,000)\n"}
+,{"stream_name":"stdout","time":676.894565463,"data":"============================================================\n"}
+,{"stream_name":"stdout","time":676.894587345,"data":"DONE\n"}
+,{"stream_name":"stdout","time":676.894593229,"data":"============================================================\n"}
+,{"stream_name":"stdout","time":676.894692406,"data":"final_val_bpb=2.6503 total_steps=389 total_time_s=649 artifact_bytes=10050419 code_bytes=38727 total_bytes=10089146\n"}
+,{"stream_name":"stdout","time":676.894701758,"data":"METRIC final_val_bpb=2.6503\n"}
+,{"stream_name":"stdout","time":676.89470696,"data":"METRIC total_steps=389\n"}
+,{"stream_name":"stdout","time":676.894753085,"data":"METRIC total_time_s=649\n"}
+,{"stream_name":"stdout","time":676.894763348,"data":"METRIC artifact_bytes=10050419\n"}
+,{"stream_name":"stdout","time":676.894768111,"data":"METRIC code_bytes=38727\n"}
+,{"stream_name":"stdout","time":676.894774263,"data":"METRIC total_bytes=10089146\n"}
+,{"stream_name":"stderr","time":682.10490285,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":682.104943286,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":682.383222973,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":682.383248469,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":683.076902695,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":684.534736059,"data":"[NbConvertApp] Writing 472765 bytes to __results__.html\n"}
+]

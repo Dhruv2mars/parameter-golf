@@ -217,15 +217,18 @@ def prepare_kernel(exp):
         f"{train_source}\n"
     )
     
-    # Kernel metadata
-    slug = f"pg-arch-{exp.name}-{int(time.time()) % 100000}"
-    (target / "kernel-metadata.json").write_text(json.dumps({
-        "id": f"dhruv2mars/{slug}",
-        "title": f"PG Arch: {exp.name}",
+    # Kernel metadata - use safe slug
+    import hashlib
+    slug = hashlib.md5(exp.name.encode()).hexdigest()[:20]
+    kernel_id = f"dhruv2mars/pg-arch-{slug}"
+    
+    metadata = {
+        "id": kernel_id,
+        "title": f"PG Arch {exp.name}",
         "code_file": "run_kernel.py",
         "language": "python",
         "kernel_type": "script",
-        "is_private": True,
+        "is_private": False,
         "enable_gpu": True,
         "enable_tpu": False,
         "enable_internet": True,
@@ -233,9 +236,10 @@ def prepare_kernel(exp):
         "competition_sources": [],
         "kernel_sources": [],
         "model_sources": [],
-    }, indent=2) + "\n")
+    }
+    (target / "kernel-metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     
-    return target, f"dhruv2mars/{slug}"
+    return target, kernel_id
 
 
 def push_kernel(path):
