@@ -2,29 +2,81 @@
 
 ## Goal
 
-Train a submission-ready language model under the 16,000,000-byte artifact cap. Do not submit until results are comparable to top 5 leaderboard scores.
+Train a language model achieving sub-1 BPB on 2xT4 GPUs with extended training.
+Use incremental 10-minute validation cycles for hill climbing toward the target.
 
-Current top-5 target from upstream README: 1.0810-1.0856 val_bpb.
+## Constraints
 
-## Current Local Result
+- **Hardware:** 2x Tesla T4 (16GB each)
+- **Artifact:** Under 16,000,000 bytes
+- **Training:** 30 hours/week quota, 12 hours per session
+- **Strategy:** Incremental 10-min runs → validate → improve → repeat
 
-`exp6_baseline`: 2.60 val_bpb, 6L x 384 GQA, Muon + weight decay, 2.48MB compressed. Useful only as a local experiment; not a valid record submission.
+## Architecture (Proven SOTA Config)
 
-## Current Kaggle Baseline
+```
+- Model: 11L x 512d x 8H / 4KV, tied embeddings
+- Tokenizer: SP8192 (SentencePiece 8K)
+- Depth Recurrence: layers 3-5, loop 2x, activates at 35% of training
+- QK-Gain: 5.25 (learnable per-head scaling)
+- MLP: 4x dim, squared LeakyReLU
+- RoPE: 16 dims, base 10000
+- Logit Softcap: 30.0
+```
 
-`parameter-golf-t4x2-v5` v3: 2.4912 val_bpb at step 500 on 2x Tesla T4, 36.0M params, SP8192, 11L x 512d, AdamW lr=0.0003. Training reached wallclock cap at step 522. Run errored during post-train quantization after saving `best_model.pt`; score is from rank0 validation log, not a submission-ready artifact.
+## Training Pipeline (Stable)
 
-## Active Files
+### Features
+- Checkpointing every 5 minutes with resume capability
+- NaN/Inf detection with graceful recovery
+- Signal handling for clean shutdown
+- 10-minute validation cycles
+- EMA model averaging
 
-- `train_kaggle.py`: Kaggle training script.
-- `run_train.sh`: local/Kaggle runner for `train_kaggle.py`.
-- `upload_kaggle.sh`: pushes the script kernel using `kernel-metadata.json`.
-- `kernel-metadata.json`: Kaggle script-kernel metadata.
-- `train_gpt.py`, `train_gpt_mlx.py`, `records/`, `data/`: upstream reference/evidence.
+### Hyperparameters
+```
+Iterations: 2500 (quick) / 50000+ (extended)
+Effective Batch: 32K tokens (8K x 4 accum)
+Matrix LR: 0.001 (AdamW)
+Weight Decay: 0.095
+EMA: 0.9965
+Warmdown: 72% of training
+```
 
-## Next Work
+## Current Status
 
-1. Restore stable high-performance optimizer path; current Muon variant NaNs after first step.
-2. Reduce validation overhead; duplicate validation at each grad-accum microstep was fixed after v3.
-3. Re-run Kaggle baseline after quantization/save fix.
-4. Only create a new `records/` folder after a reproducible, compliant result exists.
+### Phase 1: Stability (COMPLETED)
+- Rewrote train_kaggle.py from scratch
+- Removed dead code (MuonEqR, dead compression functions)
+- Fixed TTT implementation (was calling model twice)
+- Added checkpointing with resume
+- Added signal handling for graceful shutdown
+- Added NaN/Inf detection
+
+### Phase 2: Baseline (IN PROGRESS)
+- Run 10-min baseline to establish current BPB
+- Expected: ~2.3-2.5 BPB with 2500 steps
+
+### Phase 3: Hybrid Architecture (PENDING)
+- Add PPM (Prediction by Partial Match) for byte-level patterns
+- Add adaptive cache for document repetition
+- Target: ~0.1-0.15 BPB improvement
+
+### Phase 4: Extended Training (PENDING)
+- Scale to 50K-100K steps with extended sessions
+- Target: ~1.4-1.6 BPB (neural only)
+- With hybrid: sub-1 achievable
+
+## Key Files
+
+- `train_kaggle.py`: Clean, stable training pipeline
+- `run_train.sh`: Runner with all hyperparameters
+- `checkpoints/`: Saved states for resume
+- `logs/`: Training logs
+
+## Next Steps
+
+1. Run 10-min baseline on Kaggle
+2. Verify BPB is reasonable (~2.3-2.5)
+3. Begin incremental optimization experiments
+4. Add PPM integration for hybrid approach
