@@ -28,7 +28,7 @@ export MIN_LR_RATIO=${MIN_LR_RATIO:-0.1}
 # Batch (effective batch = BATCH_TOKENS * GRAD_ACCUM)
 export TRAIN_BATCH_TOKENS=${TRAIN_BATCH_TOKENS:-8192}
 export TRAIN_SEQ_LEN=${TRAIN_SEQ_LEN:-512}
-export GRAD_ACCUM_STEPS=${GRAD_ACCUM_STEPS:-4}
+export GRAD_ACCUM_STEPS=${GRAD_ACCUM_STEPS:-1}  # 1 for quick feedback, 4 for larger effective batch
 
 # Model architecture (proven SOTA config)
 export VOCAB_SIZE=${VOCAB_SIZE:-8192}

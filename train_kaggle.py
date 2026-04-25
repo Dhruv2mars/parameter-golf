@@ -44,7 +44,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 # T4 is ~3x slower, so we compensate with more accumulation
 _T4_BATCH_TOKENS = 8192
 _T4_SEQ_LEN = 512
-_T4_GRAD_ACCUM = 4          # Effective batch = 32K tokens
+_T4_GRAD_ACCUM = 1          # 1 for quick feedback, 4 for larger effective batch
 _T4_ITERATIONS = 2500        # Base iterations (will scale with time)
 _T4_MAX_WALLCLOCK = 570      # 10 minutes for quick validation runs
 _T4_MATRIX_LR = 0.001       # AdamW LR tuned for T4
