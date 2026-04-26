@@ -92,26 +92,53 @@ Outputs `METRIC val_bpb=X` lines. Each run takes ~40 min (30 min training + buff
 
 ## What's Been Tried
 
-### Baseline
-- 30-min run (ITERATIONS=7000, MAX_WALLCLOCK=1800) — RUNNING NOW
-- Expected ~1.0-1.5 BPB based on 10-min runs at ~2.65 BPB
+### Key Discoveries (32+ experiments)
 
-### Known from prior experiments
-- **SOTA architecture**: 11L x 512d x 8H / 4KV with tied embeddings
-- **SP8192 tokenizer** is fixed (cannot change)
-- **Depth recurrence**: layers 3-5, loop 2x, activates at 35% training
-- **QK-Gain 5.25** is proven optimal
-- **MLP 4x** with squared LeakyReLU
-- **RoPE 16 dims** at base 10000
-- **Best 10-min BPB**: ~2.65 (current), SOTA ~2.2-2.3 expected
-- **Best Kaggle leaderboard**: ~1.08-1.12 BPB (10-min on H100 equivalent)
+1. **ROPE_DIMS 32 = MAJOR WIN** (+2% over baseline)
+   - Sweet spot is 32 dims (tested 8, 16, 24, 28, 32, 48)
+   - rope8=2.49, rope24=2.36, rope32=2.33, rope48=2.35
+   
+2. **EMA_DECAY 0.994 > 0.9965** (+0.2%)
+   - Lower decay = faster EMA update helps convergence
+   - ema0.994 → 2.326, ema0.9965 → 2.331
 
-### Ideas to Try
-- **TTT**: Enable TTT (currently disabled) — may add ~0.05-0.1 BPB
-- **PPM**: Not yet implemented — hybrid byte-level compression
-- **Architecture exploration**: Wider/shallower vs narrower/deeper
-- **Extended warmdown**: Longer learning rate decay
-- **Lower learning rate**: May improve convergence
+3. **GRAD_CLIP_NORM 0.3 = SWEET SPOT** (+0.6%)
+   - clip0.2→2.312, clip0.3→2.309, clip0.4→2.313, clip1.0→2.331
+   - Tighter clipping helps training stability
+
+4. **QK_GAIN 4.5 > 5.25** (+0.1%)
+   - qk4.5 → 2.310, qk5.0 → 2.318, qk6.0 → 2.319
+   - Original 5.25 was good but 4.5 is better
+
+5. **Current best config**: rope32 + ema0.994 + clip0.3 + qk4.5 = 2.310 BPB
+   - 2.9% better than baseline
+
+### Failed Experiments
+- **TTT**: broken (OOM + dtype issues) - needs fix before use
+- Wider architecture (640d): too slow, hit wallclock early
+- Deeper (13L-480d): underfits
+- Seq 1024: fewer steps per time = worse
+- More depth loops (3x): slower = worse
+- Higher LR (0.002): worse convergence
+- Lower WD (0.05): worse
+- ROPE 48 dims: worse than rope32
+- EMA 0.999: too slow convergence
+
+### Architecture exploration
+- 11L x 512d x 8H / 4KV is optimal for time budget
+- More layers or width = fewer steps = worse
+- GQA (4 KV heads) is optimal
+
+## Current Best Config (30-min runs)
+```
+ROPE_DIMS=32          # +2% - BIGGEST WIN
+EMA_DECAY=0.994       # +0.2%
+GRAD_CLIP_NORM=0.3    # +0.6%
+QK_GAIN_INIT=4.5      # +0.1%
+NUM_LAYERS=11          # keep
+MODEL_DIM=512          # keep
+```
+**Result: 2.310 val_bpb in 30 min (1100 steps)**
 
 ## Loop Strategy
 
