@@ -1,0 +1,19 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "0665ca647ee4",
+  "strategy": "manual-commit",
+  "branch": "autoresearch/phase1-20260426",
+  "checkpoints_count": 69,
+  "files_touched": [
+    "autoresearch.jsonl",
+    "autoresearch.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/06/65ca647ee4/0/metadata.json",
+      "transcript": "/06/65ca647ee4/0/full.jsonl",
+      "content_hash": "/06/65ca647ee4/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}
