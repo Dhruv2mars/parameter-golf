@@ -523,10 +523,10 @@ class GPT(nn.Module):
         for i, block in enumerate(self.blocks):
             # Gradient checkpointing for memory savings
             if self._use_cp and self.training:
-                # Checkpoint each block
-                block_out = torch.utils.checkpoint(
+                # Checkpoint each block (PyTorch 2.x API)
+                block_out = torch.checkpoint(
                     block, x, x0, smear_state,
-                    use_reentrant=False,  # Required for backward to work correctly
+                    use_reentrant=False,
                     preserve_rng_state=False
                 )
             else:
@@ -543,7 +543,7 @@ class GPT(nn.Module):
                 H.num_loops > 1 and loop_active):
                 for _ in range(H.num_loops - 1):
                     if self._use_cp and self.training:
-                        x = torch.utils.checkpoint(
+                        x = torch.checkpoint(
                             block, x, x0, smear_state,
                             use_reentrant=False,
                             preserve_rng_state=False
