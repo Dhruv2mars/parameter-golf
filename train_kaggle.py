@@ -35,6 +35,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.checkpoint import checkpoint
 
 # ============================================================================
 # CONSTANTS
@@ -523,8 +524,8 @@ class GPT(nn.Module):
         for i, block in enumerate(self.blocks):
             # Gradient checkpointing for memory savings
             if self._use_cp and self.training:
-                # Checkpoint each block (PyTorch 2.x API)
-                block_out = torch.checkpoint(
+                # Checkpoint each block
+                block_out = checkpoint(
                     block, x, x0, smear_state,
                     use_reentrant=False,
                     preserve_rng_state=False
@@ -543,7 +544,7 @@ class GPT(nn.Module):
                 H.num_loops > 1 and loop_active):
                 for _ in range(H.num_loops - 1):
                     if self._use_cp and self.training:
-                        x = torch.checkpoint(
+                        x = checkpoint(
                             block, x, x0, smear_state,
                             use_reentrant=False,
                             preserve_rng_state=False
