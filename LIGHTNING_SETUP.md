@@ -24,8 +24,14 @@ This guide sets up your Parameter Golf training on Lightning AI with:
 Open the Studio terminal and run:
 
 ```bash
-# Download setup script
-wget https://raw.githubusercontent.com/Dhruv2mars/parameter-golf/main/lightning_setup.sh
+# Navigate to repo
+cd /teamspace/studios/this_studio/parameter-golf
+
+# Switch to correct branch (scripts are here)
+git checkout autoresearch/phase1-20260426
+
+# Download setup script (or it might already be there)
+ls -la *.sh
 
 # Run setup (this installs deps, clones repo, downloads data)
 bash lightning_setup.sh

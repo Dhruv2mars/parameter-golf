@@ -13,7 +13,7 @@ echo "=========================================="
 
 # Configuration
 REPO_URL="https://github.com/Dhruv2mars/parameter-golf.git"
-REPO_DIR="/workspace/parameter-golf"
+REPO_DIR="/teamspace/studios/this_studio/parameter-golf"
 VOCAB_SIZE=${1:-8192}  # Default 8192, pass 1024 as arg for baseline
 
 # =============================================================================
@@ -34,7 +34,7 @@ fi
 # =============================================================================
 
 echo "[2/5] Setting up repository..."
-cd /workspace
+cd /teamspace/studios/this_studio/parameter-golf
 
 if [ -d "$REPO_DIR" ]; then
     echo "Repo already exists, pulling latest..."

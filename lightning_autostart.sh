@@ -7,7 +7,7 @@
 # =============================================================================
 
 # Exit if not in the right directory
-cd /workspace/parameter-golf 2>/dev/null || { echo "Repo not found at /workspace/parameter-golf"; exit 1; }
+cd /teamspace/studios/this_studio/parameter-golf 2>/dev/null || { echo "Repo not found at /teamspace/studios/this_studio/parameter-golf"; exit 1; }
 
 echo "=========================================="
 echo "Auto-Start: Parameter Golf Training"

@@ -55,9 +55,9 @@ export MATRIX_CLIP_SIGMAS=${MATRIX_CLIP_SIGMAS:-12.85}
 export EMBED_CLIP_SIGMAS=${EMBED_CLIP_SIGMAS:-20.0}
 
 # Paths
-export DATA_PATH=${DATA_PATH:-"/workspace/parameter-golf/data/datasets/fineweb10B_sp${VOCAB_SIZE}"}
-export TOKENIZER_PATH=${TOKENIZER_PATH:-"/workspace/parameter-golf/data/tokenizers/fineweb_${VOCAB_SIZE}_bpe.model"}
-export CHECKPOINT_DIR=${CHECKPOINT_DIR:-"/workspace/parameter-golf/checkpoints"}
+export DATA_PATH=${DATA_PATH:-"/teamspace/studios/this_studio/parameter-golf/data/datasets/fineweb10B_sp${VOCAB_SIZE}"}
+export TOKENIZER_PATH=${TOKENIZER_PATH:-"/teamspace/studios/this_studio/parameter-golf/data/tokenizers/fineweb_${VOCAB_SIZE}_bpe.model"}
+export CHECKPOINT_DIR=${CHECKPOINT_DIR:-"/teamspace/studios/this_studio/parameter-golf/checkpoints"}
 export CHECKPOINT_EVERY_SECONDS=${CHECKPOINT_EVERY_SECONDS:-10800}  # 3 hours - reduce overhead
 
 # Run identification
@@ -68,7 +68,7 @@ export SEED=${SEED:-1337}
 # DIRECTORIES
 # =============================================================================
 
-cd /workspace/parameter-golf
+cd /teamspace/studios/this_studio/parameter-golf
 mkdir -p logs checkpoints
 
 # =============================================================================
