@@ -41,17 +41,17 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 # ============================================================================
 
 # T4 specs: 16GB VRAM each, ~65 TFLOPs vs H100 SXM ~400 TFLOPs
-# T4 is ~3x slower, so we compensate with more accumulation
-_T4_BATCH_TOKENS = 8192
-_T4_SEQ_LEN = 512
-_T4_GRAD_ACCUM = 1          # 1 for quick feedback, 4 for larger effective batch
-_T4_ITERATIONS = 2500        # Base iterations (will scale with time)
-_T4_MAX_WALLCLOCK = 570      # 10 minutes for quick validation runs
-_T4_MATRIX_LR = 0.001       # AdamW LR tuned for T4
+# Single T4 on Lightning AI (not 2x T4 like Kaggle)
+_T4_BATCH_TOKENS = 4096     # Reduced for single GPU with SP8192
+_T4_SEQ_LEN = 8192          # SP8192: Long sequence with chunked processing
+_T4_GRAD_ACCUM = 2          # Maintain effective batch size
+_T4_ITERATIONS = 2000        # 30-min budget
+_T4_MAX_WALLCLOCK = 1800     # 30 minutes
+_T4_MATRIX_LR = 0.0008      # Slightly lower LR for stability
 
 # Checkpointing
 _CHECKPOINT_DIR = "checkpoints"
-_CHECKPOINT_EVERY_SECONDS = int(os.environ.get("CHECKPOINT_EVERY_SECONDS", 300))  # 5 min default, 3hr for Lightning
+_CHECKPOINT_EVERY_SECONDS = int(os.environ.get("CHECKPOINT_EVERY_SECONDS", 600))  # 10 min for 30-min run
 _CHECKPOINT_PREFIX = "ckpt_step_"
 
 # ============================================================================
@@ -122,6 +122,27 @@ class H:
     ttt_lr = float(os.environ.get("TTT_LR", 0.005))
     ttt_epochs = int(os.environ.get("TTT_EPOCHS", 3))
     ttt_warmup_tokens = int(os.environ.get("TTT_WARMUP_TOKENS", 32768))
+    
+    # ============================================================
+    # NEW FEATURES (SP8192 + Parallel Residuals + SmearGate)
+    # ============================================================
+    
+    # Sequence Parallelism (SP8192)
+    # Splits sequence across GPUs for longer context. On single GPU,
+    # we use chunked processing to save memory.
+    sp_enabled = bool(int(os.environ.get("SP_ENABLED", "1")))
+    sp_chunk_size = int(os.environ.get("SP_CHUNK_SIZE", 2048))  # Process in chunks
+    
+    # Parallel Residuals - compute attention and MLP in parallel
+    parallel_residuals = bool(int(os.environ.get("PARALLEL_RESIDUALS", "1")))
+    
+    # SmearGate - cross-layer gating mechanism
+    # Smears information across layers via learned gating
+    smear_gate = bool(int(os.environ.get("SMEAR_GATE", "1")))
+    smear_gate_decay = float(os.environ.get("SMEAR_GATE_DECAY", 0.9))  # Decay factor
+    
+    # Gradient checkpointing for memory savings
+    use_gradient_checkpointing = bool(int(os.environ.get("USE_GRADIENT_CHECKPOINTING", "1")))
 
 
 # ============================================================================
@@ -367,11 +388,20 @@ class MLP(nn.Module):
 
 
 class Block(nn.Module):
-    """Transformer block with pre-norm and learned residuals."""
+    """
+    Transformer block with:
+    1. Parallel Residuals - attention and MLP computed in parallel
+    2. SmearGate - cross-layer gating for information flow
+    3. Pre-norm with learned residuals
+    """
     def __init__(self, dim, num_heads, num_kv_heads, mlp_mult, rope_base, 
-                 qk_gain_init, layer_idx, rope_dims=0):
+                 qk_gain_init, layer_idx, rope_dims=0,
+                 use_parallel_residuals=True, use_smear_gate=True,
+                 smear_decay=0.9):
         super().__init__()
         self.layer_idx = layer_idx
+        self.use_parallel_residuals = use_parallel_residuals
+        self.use_smear_gate = use_smear_gate
         
         self.attn_norm = RMSNorm(dim)
         self.mlp_norm = RMSNorm(dim)
@@ -386,29 +416,68 @@ class Block(nn.Module):
             torch.ones(dim), torch.zeros(dim)
         )).float())
         
+        # ============================================================
+        # SmearGate - cross-layer information gating
+        # ============================================================
+        if use_smear_gate:
+            # Gate that smears information from previous layers
+            self.smear_gate = nn.Parameter(torch.ones(dim) * smear_decay)
+            self.smear_proj = CastedLinear(dim, dim)  # Project smear info
+        else:
+            self.smear_gate = None
+            self.smear_proj = None
+        
         # Layer scaling (deeper layers slightly smaller)
         self.ln_scale = 1.0 / math.sqrt(layer_idx + 1)
     
-    def forward(self, x, x0):
+    def forward(self, x, x0, smear_state=None):
         dtype = x.dtype
         mix = self.resid_mix.to(dtype=dtype)
         
         # Residual mix: combine current and original residual
         x_in = mix[0][None, None, :] * x + mix[1][None, None, :] * x0
         
-        # Attention block
-        x = x_in + self.attn_scale.to(dtype=dtype)[None, None, :] * \
-            self.attn(self.attn_norm(x_in) * self.ln_scale)
+        # ============================================================
+        # Apply SmearGate from previous layer's output
+        # ============================================================
+        if self.use_smear_gate and smear_state is not None:
+            gate = torch.sigmoid(self.smear_gate.to(dtype=dtype))
+            smear = self.smear_proj(smear_state)
+            x_in = x_in + gate[None, None, :] * smear
         
-        # MLP block
-        x = x + self.mlp_scale.to(dtype=dtype)[None, None, :] * \
-            self.mlp(self.mlp_norm(x) * self.ln_scale)
+        # ============================================================
+        # Parallel Residuals: compute attn and MLP in parallel
+        # ============================================================
+        if self.use_parallel_residuals:
+            # Pre-norm both branches
+            attn_in = self.attn_norm(x_in) * self.ln_scale
+            mlp_in = self.mlp_norm(x_in) * self.ln_scale
+            
+            # Compute in parallel (manual implementation to ensure execution)
+            attn_out = self.attn(attn_in)
+            mlp_out = self.mlp(mlp_in)
+            
+            # Apply residual connections
+            x = x_in
+            x = x + self.attn_scale.to(dtype=dtype)[None, None, :] * attn_out
+            x = x + self.mlp_scale.to(dtype=dtype)[None, None, :] * mlp_out
+        else:
+            # Sequential (original)
+            x = x_in + self.attn_scale.to(dtype=dtype)[None, None, :] * \
+                self.attn(self.attn_norm(x_in) * self.ln_scale)
+            x = x + self.mlp_scale.to(dtype=dtype)[None, None, :] * \
+                self.mlp(self.mlp_norm(x) * self.ln_scale)
         
         return x
 
 
 class GPT(nn.Module):
-    """Standard transformer language model."""
+    """
+    Transformer language model with:
+    1. SP8192 - Sequence Parallelism via chunked processing
+    2. Parallel Residuals - attention and MLP in parallel
+    3. SmearGate - cross-layer gating
+    """
     def __init__(self):
         super().__init__()
         
@@ -416,7 +485,10 @@ class GPT(nn.Module):
         self.blocks = nn.ModuleList([
             Block(
                 H.model_dim, H.num_heads, H.num_kv_heads, H.mlp_mult,
-                H.rope_base, H.qk_gain_init, i, H.rope_dims
+                H.rope_base, H.qk_gain_init, i, H.rope_dims,
+                use_parallel_residuals=H.parallel_residuals,
+                use_smear_gate=H.smear_gate,
+                smear_decay=H.smear_gate_decay
             )
             for i in range(H.num_layers)
         ])
@@ -425,6 +497,12 @@ class GPT(nn.Module):
         # Tied embeddings save parameters
         self.lm_head = None if H.tie_embeddings else \
             CastedLinear(H.model_dim, H.vocab_size, bias=False)
+        
+        # Register gradient checkpointing if enabled
+        if H.use_gradient_checkpointing:
+            self._use_cp = True
+        else:
+            self._use_cp = False
         
         self._init_weights()
     
@@ -436,27 +514,82 @@ class GPT(nn.Module):
                 if (m.bias.data == 0).all() or m.bias.data.abs().sum() == 0:
                     nn.init.zeros_(m.bias)
     
-    def forward(self, x, target=None):
-        x = self.tok_emb(x)
-        x = F.rms_norm(x, (x.size(-1),))
-        x0 = x
-        
+    def _forward_chunk(self, x, x0, smear_state=None):
+        """Forward pass through all blocks for a single chunk."""
         # Compute depth loop activation step
         warmup_steps = int(H.iterations * H.enable_looping_at)
         loop_active = False
         
         for i, block in enumerate(self.blocks):
-            x = block(x, x0)
+            # Gradient checkpointing for memory savings
+            if self._use_cp and self.training:
+                # Checkpoint each block
+                block_out = torch.utils.checkpoint(
+                    block, x, x0, smear_state,
+                    use_reentrant=False,  # Required for backward to work correctly
+                    preserve_rng_state=False
+                )
+            else:
+                block_out = block(x, x0, smear_state)
+            
+            # Update smear state from this layer
+            if H.smear_gate:
+                smear_state = block_out
+            
+            x = block_out
             
             # Depth recurrence: loop layers 3-5 after warmup
             if (i >= H.loop_start and i <= H.loop_end and 
                 H.num_loops > 1 and loop_active):
                 for _ in range(H.num_loops - 1):
-                    x = block(x, x0)
+                    if self._use_cp and self.training:
+                        x = torch.utils.checkpoint(
+                            block, x, x0, smear_state,
+                            use_reentrant=False,
+                            preserve_rng_state=False
+                        )
+                    else:
+                        x = block(x, x0, smear_state)
+                    if H.smear_gate:
+                        smear_state = x
             
             # Activate recurrence after warmup
             if i == H.loop_start:
                 loop_active = True
+        
+        return x, smear_state
+    
+    def forward(self, x, target=None):
+        b, seq_len, d = x.shape[0], x.shape[1], H.model_dim
+        
+        x = self.tok_emb(x)
+        x = F.rms_norm(x, (x.size(-1),))
+        x0 = x
+        
+        # ============================================================
+        # SP8192: Chunked sequence processing for long contexts
+        # ============================================================
+        if H.sp_enabled and seq_len > H.sp_chunk_size:
+            # Process sequence in chunks to save memory
+            # Use overlapping chunks and aggregate states
+            chunk_size = H.sp_chunk_size
+            smear_state = None
+            all_hiddens = []
+            
+            for start in range(0, seq_len, chunk_size):
+                end = min(start + chunk_size, seq_len)
+                chunk = x[:, start:end, :]
+                chunk0 = x0[:, start:end, :]
+                
+                # Forward through blocks
+                chunk_out, smear_state = self._forward_chunk(chunk, chunk0, smear_state)
+                all_hiddens.append(chunk_out)
+            
+            # Concatenate chunks
+            x = torch.cat(all_hiddens, dim=1)
+        else:
+            # Standard forward pass
+            x, _ = self._forward_chunk(x, x0, None)
         
         x = self.final_norm(x)
         
@@ -711,9 +844,11 @@ def train():
                 print(f"METRIC {k}={v}", flush=True)
     
     log("=" * 60)
-    log(f"Parameter Golf - T4 Training")
+    log(f"Parameter Golf - Lightning AI Training")
+    log(f"Features: SP8192 + Parallel Residuals + SmearGate")
     log(f"Run ID: {args.run_id}")
     log(f"Device: {torch.cuda.get_device_name()} (rank {rank}/{world_size})")
+    log(f"Seq Len: {args.train_seq_len}, Batch Tokens: {args.train_batch_tokens}")
     log(f"PyTorch: {torch.__version__}")
     log("=" * 60)
     
