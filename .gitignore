@@ -1,11 +1,20 @@
-data/tokenizers
-__pycache__/
-.DS_Store
-modded-nanogpt/
-modded-nanogpt
-data/datasets
+# Data & Cache
+data/tokenizers/
+data/datasets/
 data/manifest.json
 data/docs_selected.jsonl
-.mypy_cache/
-.venv
 logs/
+__pycache__/
+.DS_Store
+.mypy_cache/
+.venv/
+
+# Build artifacts
+modded-nanogpt/
+checkpoints/
+*.pt
+*.pth
+
+# Env
+.env
+.env.local
