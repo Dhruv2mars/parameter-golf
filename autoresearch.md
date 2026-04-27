@@ -124,32 +124,41 @@ Outputs `METRIC val_bpb=X` lines. Each run takes ~40 min (30 min training + buff
 - ROPE 48 dims: worse than rope32
 - EMA 0.999: too slow convergence
 
-### Architecture exploration
-- 11L x 512d x 8H / 4KV is optimal for time budget
-- More layers or width = fewer steps = worse
-- GQA (4 KV heads) is optimal
+### ROPE base & KV exploration
+- rope_base 5000 → 2.301, worse than 10000 ✓
+- rope_base 20000 → 2.325, much worse ✓
+- 2 KV heads → 2.301, slightly worse than 4 ✓
 
-## Current Best Config (30-min runs)
+### Current best config (30-min runs)
 ```
 ROPE_DIMS=32          # +2% - BIGGEST WIN
 EMA_DECAY=0.994       # +0.2%
 GRAD_CLIP_NORM=0.3    # +0.6%
-QK_GAIN_INIT=4.5      # +0.1%
-NUM_LAYERS=11          # keep
-MODEL_DIM=512          # keep
+QK_GAIN_INIT=4.0      # +0.1%
+WARMDOWN_FRAC=0.80    # small gain
+MATRIX_LR=0.0008      # lower LR helps slightly
+NUM_LAYERS=11         # keep
+MODEL_DIM=512         # keep
 ```
-**Result: 2.310 val_bpb in 30 min (1100 steps)**
+
+**Result: 2.30 val_bpb in 30 min (1100-1200 steps)**
+**Gap to sub-1: ~1.3 BPB — needs extended training + PPM**
 
 ## Loop Strategy
 
-1. Start with 30-min baseline (RUNNING NOW)
-2. Establish baseline BPB
-3. Try architecture changes first (layers, dims, heads) — highest impact
-4. Then tune hyperparameters (LR, WD, EMA) — medium impact
-5. Enable TTT if disabled — easy win if it works
-6. Explore PPM integration if time permits
-7. Keep iterating until confident in best config
-8. Run extended training (6-12hr) on winning config
+1. ✓ Establish 30-min baseline: 2.38 BPB
+2. ✓ Architecture exploration: ROPE_DIMS 32 is best (+2%)
+3. ✓ Hyperparameter tuning: EMA, clip, warmdown, LR, QK
+4. ✗ TTT: broken on T4 (OOM)
+5. ⏳ Extended training: needed to close gap to sub-1
+6. ⏳ PPM: not yet implemented
+
+## Extended Training Strategy
+- Current best: 2.30 BPB in 30 min
+- Extended (6hr): estimated ~1.7-1.9 BPB
+- Extended + PPM: estimated ~0.8-1.0 BPB
+- Run extended training on best config when ready
+- PPM implementation is the key to sub-1
 
 ## Notes
 
