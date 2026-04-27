@@ -51,7 +51,7 @@ _T4_MATRIX_LR = 0.001       # AdamW LR tuned for T4
 
 # Checkpointing
 _CHECKPOINT_DIR = "checkpoints"
-_CHECKPOINT_EVERY_SECONDS = 300  # 5 minutes
+_CHECKPOINT_EVERY_SECONDS = int(os.environ.get("CHECKPOINT_EVERY_SECONDS", 300))  # 5 min default, 3hr for Lightning
 _CHECKPOINT_PREFIX = "ckpt_step_"
 
 # ============================================================================
