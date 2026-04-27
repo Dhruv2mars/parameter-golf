@@ -1,0 +1,18 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "87307d957c43",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "train_kaggle.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/87/307d957c43/0/metadata.json",
+      "transcript": "/87/307d957c43/0/full.jsonl",
+      "content_hash": "/87/307d957c43/0/content_hash.txt",
+      "prompt": "/87/307d957c43/0/prompt.txt"
+    }
+  ]
+}
