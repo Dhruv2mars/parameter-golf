@@ -1,0 +1,75 @@
+ok, there is a major update. our kaggle quota has finished. so we have shifted to lightning.ai as they have gpu quota on free tier. checkout their docs to know more. i have a studio currently running. i want you to use that for the gpu training. setup that, see current repo and find relevant files. make sure everything works and runs smoothly. also setup such that you can perform terminal tasks and other stuff in studio by your own. if you need anything, want more context, ask me.
+
+---
+
+what do u need? for the setup
+
+---
+
+REDACTED 
+REDACTED 
+lightning login
+
+url: https://lightning.ai/dhruv2mars/default-project/studios/parameter-golf/code
+
+anything more?
+
+---
+
+whatever you feel good with, other than ssh. go ahead. 
+also, have u installed the cli here? without that how can you do that
+
+---
+
+open in my running brave bowser tab
+
+---
+
+no, use agent browser skill, and open the lightning page directly on there. i will do the rest
+
+---
+
+there are no tabs in brave. have u ran it
+
+---
+
+dont open with chrome, open with brave
+
+---
+
+done, see now
+
+---
+
+whats the status? have we setup lightning perfectly? is everything working perfectly fine? 
+
+make sure u do a short 1 min training run just to see if our training pipeline and everything is set perfectly and everything is stable
+
+---
+
+i would like you to do it completely different. have u installed the cli here, can u use it? use that to do and control everything
+
+---
+
+you have to remove whatever cli u installed. run this to install: pip install lightning-sdk -U
+
+---
+
+teamspace name is: default-project
+
+and there are no studios there.
+
+---
+
+continue. make sure our setup with cli is perfect and everything is working perfectly fine. also note that dont keep the GPU running continuesly if you dont need it, it cuts my usage quota
+
+---
+
+ok, i have removed all the studios. started a completely new one with correct gpu and running, its name is parameter-golf. now, set that up and make sure you can control and do everything in it.
+
+---
+
+ok, great. i would like you to do the follwoing things first:
+- cleanup the repo on lightning.ai - like i can still se the dafault main.py file, and other irrelevant folder. remove those
+- in our parameter-golf repo as well. do the cleanup. like remove the kaggle file, since we are not doing any training on kaggle now. cleanup the repo just to clear the bloat and jargon. 
+- then, push the changes to main on github/lightning. make sure you keep track of the upstream parameter-golf repo from openai, if we are behind fix that and then update things everywhere.
