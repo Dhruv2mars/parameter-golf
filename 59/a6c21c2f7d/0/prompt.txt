@@ -1,0 +1,22 @@
+no, revert back to previous commit. revert back. dont want this
+
+---
+
+great. now we come to our actual work of working on the training and model. where were we at before all this kaggle-lightning drama and other stuff. ???
+
+---
+
+here is what you have to do now:
+
+Do this:
+1. implement all 3 changes: (SP8192 + parallel residuals + SmearGate)
+2. Run 30-min test with conservative settings:
+   TRAIN_SEQ_LEN=8192
+   TRAIN_BATCH_TOKENS=4096  # Reduce if OOM
+   GRAD_ACCUM_STEPS=2       # Maintain effective batch
+   ITERATIONS=2000         # 30-min budget
+if it doesnt OOM, great. but if it does: Use gradient checkpointing to trade compute for memory
+
+tell me once the 30 min training run is complete without any issues. be absolutely critical and no mistakes.
+
+also, note that we are now on lightning.ai instead of kaggle. and here, we dont have 2x t4 gpus, instead a single one.
