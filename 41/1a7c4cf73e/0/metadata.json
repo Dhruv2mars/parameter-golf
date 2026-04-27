@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "411a7c4cf73e",
+  "session_id": "019dc5c7-496c-717e-a158-99cb06642402",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-27T13:15:06.446366Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Pi",
+  "model": "minimax/MiniMax-M2.7",
+  "turn_id": "4ab92a4d074b",
+  "session_metrics": {
+    "turn_count": 464
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
