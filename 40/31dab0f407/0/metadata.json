@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "4031dab0f407",
+  "session_id": "019dc5c7-496c-717e-a158-99cb06642402",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-27T13:37:37.996256Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "train_kaggle.py"
+  ],
+  "agent": "Pi",
+  "model": "minimax/MiniMax-M2.7",
+  "turn_id": "18031b954ddb",
+  "session_metrics": {
+    "turn_count": 496
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-27T13:37:37.960666Z",
+    "agent_lines": 4,
+    "agent_removed": 4,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 4,
+    "total_lines_changed": 8,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
