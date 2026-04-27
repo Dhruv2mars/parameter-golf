@@ -997,20 +997,29 @@ def train():
                 model.eval()
                 val_loss_sum = 0.0
                 val_token_count = 0
+                # Use shorter sequences for validation to avoid memory issues
+                val_seq = min(args.train_seq_len, 2048)
+                val_batch_size = max(1, 8192 // val_seq)
                 val_limit = min(val_tokens.numel() - 1, args.val_max_tokens)
                 
                 with torch.no_grad():
-                    for i in range(0, val_limit, args.train_seq_len * 4):
-                        x = val_tokens[i:i + args.train_seq_len * 4].to(device).long()
-                        y = val_tokens[i + 1:i + 1 + args.train_seq_len * 4].to(device).long()
+                    for i in range(0, val_limit, val_seq * val_batch_size):
+                        # Reshape to 2D: (batch, seq)
+                        chunk = val_tokens[i:i + val_seq * val_batch_size + 1].to(device).long()
+                        x = chunk[:-1].reshape(-1, val_seq)
+                        y = chunk[1:].reshape(-1, val_seq)
                         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                             loss = raw_model(x, y)
-                        val_loss_sum += loss.item() * x.numel()
-                        val_token_count += x.numel()
+                        if torch.isfinite(loss):
+                            val_loss_sum += loss.item() * x.numel()
+                            val_token_count += x.numel()
                 
-                val_loss = val_loss_sum / val_token_count
+                if val_token_count > 0:
+                    val_loss = val_loss_sum / val_token_count
+                else:
+                    val_loss = float('nan')
                 val_bpb = compute_val_bpb(val_loss, val_tokens[:val_token_count],
-                                          base_bytes_lut, device)
+                                          base_bytes_lut, device) if val_token_count > 0 else float('nan')
                 
                 # Update EMA
                 current_state = {k: v.cpu().clone() for k, v in raw_model.state_dict().items()}
