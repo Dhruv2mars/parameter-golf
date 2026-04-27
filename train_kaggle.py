@@ -561,9 +561,17 @@ class GPT(nn.Module):
         return x, smear_state
     
     def forward(self, x, target=None):
-        b, seq_len, d = x.shape[0], x.shape[1], H.model_dim
+        # Handle different input shapes
+        if x.ndim == 1:
+            x = x.unsqueeze(0)  # (seq,) -> (1, seq)
+            squeeze_output = True
+        else:
+            squeeze_output = False
         
-        x = self.tok_emb(x)
+        # Now x should be 2D: (batch, seq)
+        b, seq_len = x.shape[0], x.shape[1]
+        
+        x = self.tok_emb(x)  # (batch, seq) -> (batch, seq, dim)
         x = F.rms_norm(x, (x.size(-1),))
         x0 = x
         
