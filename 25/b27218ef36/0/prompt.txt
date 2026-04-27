@@ -1,0 +1,149 @@
+Autoresearch loop ended (likely context limit). Resume the experiment loop — read autoresearch.md and git log for context. Be careful not to overfit to the benchmarks and do not cheat on the benchmarks.
+
+---
+
+ok, whats the model status? done with 49 runs, where we are at now?
+
+---
+
+autoresearch stop
+
+---
+
+here is what we are gonna do before doing any other long run. 
+
+Strategic Roadmap to <0.6 BPB
+
+
+  Phase 1: Fix TTT & Extended Training (Priority #1)
+
+
+  Your extended training run showed 0.34 BPB gain in 1.5 hours. Extrapolating:
+
+
+
+   30min: 2.30 BPB
+   2hr:    1.96 BPB  (-0.34)
+   4hr:    ~1.80 BPB (est)
+   8hr:    ~1.60 BPB (est)
+   12hr:   ~1.50 BPB (est)
+
+
+
+  But you need to fix TTT first - it could add 0.05-0.15 BPB.
+
+
+  Fix TTT for T4:
+
+
+   # Memory-efficient TTT implementation
+   def run_ttt_memory_efficient(model, val_tokens, ...):
+       # Option 1: Use only embeddings, not full model
+       # Option 2: LoRA-style updates
+       # Option 3: Smaller TTT batch size (1024 vs 8192)
+
+       model.eval()
+       optimizer = torch.optim.SGD(
+           [p for p in model.parameters() if p.ndim >= 2],  # skip small params
+           lr=0.002,
+           momentum=0.9
+       )
+
+       for epoch in range(args.ttt_epochs):
+           # Process 4K tokens at a time instead of 32K
+           for start in range(0, len(val_tokens)-1, 4096):
+               chunk = val_tokens[start:start+4096]
+               # Score first, then train on same chunk
+               ...
+
+
+
+  Phase 2: Architectural Additions (Priority #2)
+
+
+  Add proven techniques from leaderboard:
+
+
+  2.1 SmearGate (Easy Win)
+
+
+   # In Block.forward():
+   class Block(nn.Module):
+       def forward(self, x, x0):
+           # SmearGate: learns residual gating
+           smear = torch.sigmoid(self.smear_gate)  # learnable scalar
+           x = smear * x + (1 - smear) * x0
+           ...
+
+
+
+  2.2 BigramHash (Proven ~0.02 BPB improvement)
+
+
+   class BigramHash(nn.Module):
+       """Hash-based n-gram lookup - captures local patterns cheaply"""
+       def __init__(self, vocab_size, capacity=4096):
+           super().__init__()
+           self.table = nn.Embedding(vocab_size, 64)  # hash bucket features
+           self.proj = nn.Linear(64, model_dim)
+
+       def forward(self, x):
+           # Simple: hash current + prev token
+           prev = torch.roll(x, 1, dims=0)
+           hash_idx = (x * 31 + prev) % self.capacity
+           return self.proj(self.table(hash_idx))
+
+
+
+  2.3 Parallel Residuals (Advanced) From SOTA submissions - both attention and MLP read from same pre-norm input.
+
+
+  Phase 3: The Real 0.6 Strategy
+
+
+  To reach 0.6 BPB, you need hybrid compression:
+
+
+  The insight: BPB measures compression ratio. A model that perfectly predicts token distribution gets ~1.0 BPB. Going below 1.0 requires:
+
+   1 Learning patterns that zlib can't compress
+   2 Exploiting document-level structure
+   3 Having enough capacity to model complex dependencies
+
+
+  Implement Document-Level Compression:
+
+
+
+   def compress_with_document_boundary(val_tokens, model, sp):
+       """Split validation into documents and compress each separately"""
+       # Find document boundaries (tokenizer has boundary markers)
+       docs = split_by_boundary(val_tokens)
+
+       total_bits = 0
+       total_bytes = 0
+
+       for doc in docs:
+           # Model prediction
+           with torch.no_grad():
+               logits = model(doc[:-1])
+               probs = F.softmax(logits, dim=-1)
+
+           # Bits = -log2(p) for actual tokens
+           bits = -torch.log2(probs[range(len(doc)-1), doc[1:]].clamp(min=1e-10))
+           total_bits += bits.sum().item()
+
+           # Bytes from tokenizer
+           total_bytes += sum(len(sp.id_to_piece(t).encode('utf-8')) for t in doc)
+
+       return total_bits / total_bytes
+
+we would first apply all of these, based on our understanding and past experience. i think if we apply all 3 phases, we can do wonders. 
+
+i think we should do these 3 phases, and then do a 2 hour training run (after first verifying that TTT is working perfectly, by doing a short few min run). then compare that with our previous 2 hr run and see if these techniques helped. if yes, then we would know that we are on the right track. 
+
+after that, i still have few tricks up my sleeve which we can apply that will reduce the bpb even further. but thats for later. 
+
+no need to do extreme long training runs for now. we have found that extended training helps. thats it. 
+
+give me a honest take on this and be ruthless. I don't want you glazing on me. use caveman ultra mode.
