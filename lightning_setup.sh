@@ -14,7 +14,7 @@ echo "=========================================="
 # Configuration
 REPO_URL="https://github.com/Dhruv2mars/parameter-golf.git"
 REPO_DIR="/teamspace/studios/this_studio/parameter-golf"
-VOCAB_SIZE=${1:-8192}  # Default 8192, pass 1024 as arg for baseline
+VOCAB_SIZE=${1:-1024}  # Default 1024 (works), pass 8192 as arg if needed
 
 # =============================================================================
 # 1. Install CLI if not present
