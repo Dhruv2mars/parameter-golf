@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "5db4e6c9c139",
+  "session_id": "019dc5c7-496c-717e-a158-99cb06642402",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-27T10:40:50.742678Z",
+  "branch": "autoresearch/phase1-20260426",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "autoresearch.jsonl"
+  ],
+  "agent": "Pi",
+  "model": "minimax/MiniMax-M2.7",
+  "turn_id": "8bf825fd30da",
+  "session_metrics": {
+    "turn_count": 201
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-27T10:40:50.72102Z",
+    "agent_lines": 1,
+    "agent_removed": 0,
+    "human_added": 16003,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 16004,
+    "total_lines_changed": 16013,
+    "agent_percentage": 0.006244925997626928,
+    "metric_version": 2
+  }
+}
