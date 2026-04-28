@@ -1,0 +1,162 @@
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+
+---
+
+here is the thing. fistly do a verification check that our modal connection is working. do a very short training run. 
+
+once you are good and verified that our training setup is perfect. then we will go ahead. 
+
+here is what needs to be done. you already have the full PRD. you already know what my goal is and what current situation is. you have 12 hours from now (its 9pm right now) and a decent budget in terms of gpu compute ($30). you need to make sure that by hook or crook, when i come back at 9am tomorrow morning, our model should be doing around 1 bpb stable. you have full control over everything, follow the prd plan, figure out things, if something goes bad, fix that and keep moving. 
+
+you just need to make sure that we reach our ultimate goal and be ready for our submission. 
+use skills wherever necessary. checkout web wherever required. 
+
+have any questions, doubts, need more context regarding this? ask me right now before moving ahead.
+
+---
+
+here is the thing. fistly do a verification check that our modal connection is working. do a very short training run. 
+
+once you are good and verified that our training setup is perfect. then we will go ahead. 
+
+here is what needs to be done. you already have the full PRD. you already know what my goal is and what current situation is. you have 12 hours from now (its 9pm right now) and a decent budget in terms of gpu compute ($30). you need to make sure that by hook or crook, when i come back at 9am tomorrow morning, our model should be doing around 1 bpb stable. you have full control over everything, follow the prd plan, figure out things, if something goes bad, fix that and keep moving. 
+
+you just need to make sure that we reach our ultimate goal and be ready for our submission. 
+use skills wherever necessary. checkout web wherever required. 
+
+have any questions, doubts, need more context regarding this? ask me right now before moving ahead.
+
+---
+
+here is the thing. fistly do a verification check that our modal connection is working. do a very short training run. 
+
+once you are good and verified that our training setup is perfect. then we will go ahead. 
+
+here is what needs to be done. you already have the full PRD. you already know what my goal is and what current situation is. you have 12 hours from now (its 9pm right now) and a decent budget in terms of gpu compute ($30). you need to make sure that by hook or crook, when i come back at 9am tomorrow morning, our model should be doing around 1 bpb stable. you have full control over everything, follow the prd plan, figure out things, if something goes bad, fix that and keep moving. 
+
+you just need to make sure that we reach our ultimate goal and be ready for our submission. 
+use skills wherever necessary. checkout web wherever required. 
+
+have any questions, doubts, need more context regarding this? ask me right now before moving ahead.
+
+---
+
+here is the thing. fistly do a verification check that our modal connection is working. do a very short training run. 
+
+once you are good and verified that our training setup is perfect. then we will go ahead. 
+
+here is what needs to be done. you already have the full PRD. you already know what my goal is and what current situation is. you have 12 hours from now (its 9pm right now) and a decent budget in terms of gpu compute ($30). you need to make sure that by hook or crook, when i come back at 9am tomorrow morning, our model should be doing around 1 bpb stable on t4 gpu. it should be according to the challenge criteria: under 16 mb, etc.  you have full control over everything, follow the prd plan, figure out things, if something goes bad, fix that and keep moving. 
+
+you just need to make sure that we reach our ultimate goal and be ready for our submission. 
+use skills wherever necessary. checkout web wherever required. 
+
+have any questions, doubts, need more context regarding this? ask me right now before moving ahead.
+
+---
+
+here is the thing. fistly do a verification check that our modal connection is working. do a very short training run. 
+
+once you are good and verified that our training setup is perfect. then we will go ahead. 
+
+here is what needs to be done. you already have the full PRD. you already know what my goal is and what current situation is. you have 12 hours from now (its 9pm right now) and a decent budget in terms of gpu compute ($30). you need to make sure that by hook or crook, when i come back at 9am tomorrow morning, our model should be doing around 1 bpb stable on t4 gpu. it should be according to the challenge criteria: under 16 mb, etc.  you have full control over everything, follow the prd plan, figure out things, if something goes bad, fix that and keep moving. 
+
+you just need to make sure that we reach our ultimate goal and be ready for our submission. 
+use skills wherever necessary. checkout web wherever required. 
+
+have any questions, doubts, need more context regarding this? ask me right now before moving ahead.
+
+---
+
+Is the architecture according to the PRD? Have you made the fine tunes in architecture? do not do medium-Long and long training runs if the architecture is not perfect.
+
+---
+
+Is the architecture according to the PRD? Have you made the fine tunes in architecture? do not do medium-Long and long training runs if the architecture is not perfect.
+
+---
+
+Is the architecture according to the PRD? Have you made the fine tunes in architecture? do not do medium-Long and long training runs if the architecture is not perfect.
+
+---
+
+status?
+
+---
+
+status?
+
+---
+
+status?
+
+---
+
+you know what, if you like you can use 2 t4 gpu for training runs. maybe parallel to single run make things faster. its your call. just a thought that i had
+
+---
+
+remember, you have till 9am to make the model sub-1 bpb.
+
+---
+
+remember, you have till 9am to make the model sub-1 bpb.
+
+---
+
+you should use checkpoints to do continued training if cant go beyond a certain point in single modal session. or you should utilize multiple t4 gpu (concurrent in a single session to increase compute to train faster. these numbers are total shit. i want the whole system everything combined to have the score of sub-1 bpb. do not stop until you have that score. if you are stuck with modal infra capabilities, then utilzie the lightning.ai infra and setup that is there on the main branch. take a look at that, and copy that, use that for training, but note that there, you will only get 1 single t4 gpu. 
+
+/grill-me
+
+---
+
+you should use checkpoints to do continued training if cant go beyond a certain point in single modal session. or you should utilize multiple t4 gpu (concurrent in a single session to increase compute to train faster. these numbers are total shit. i want the whole system everything combined to have the score of sub-1 bpb. do not stop until you have that score. if you are stuck with modal infra capabilities, then utilzie the lightning.ai infra and setup that is there on the main branch. take a look at that, and copy that, use that for training, but note that there, you will only get 1 single t4 gpu. 
+
+/grill-me
+
+---
+
+you should use checkpoints to do continued training if cant go beyond a certain point in single modal session. or you should utilize multiple t4 gpu (concurrent in a single session to increase compute to train faster. these numbers are total shit. i want the whole system everything combined to have the score of sub-1 bpb. do not stop until you have that score. if you are stuck with modal infra capabilities, then utilzie the lightning.ai infra and setup that is there on the main branch. take a look at that, and copy that, use that for training, but note that there, you will only get 1 single t4 gpu. 
+
+/grill-me
+
+---
+
+1. checkout the actual upstream parameter-golf repo, see what are the submission guidelines, in terms of what the model has to achieve. make sure that the scores we get imply with those. make sure that our submission is legal and whatever sub-1 bpb score we will get is logal. but yes, since we are targettiing non-leaderboard submission, the 8xh100 and 10 min training time doesnt apply. 
+
+just check the repo and confirm if they take scores just for neural or full hybrid system is also allowed/legal.
+
+---
+
+1. checkout the actual upstream parameter-golf repo, see what are the submission guidelines, in terms of what the model has to achieve. make sure that the scores we get imply with those. make sure that our submission is legal and whatever sub-1 bpb score we will get is logal. but yes, since we are targettiing non-leaderboard submission, the 8xh100 and 10 min training time doesnt apply. 
+
+just check the repo and confirm if they take scores just for neural or full hybrid system is also allowed/legal.
+
+---
+
+1. checkout the actual upstream parameter-golf repo, see what are the submission guidelines, in terms of what the model has to achieve. make sure that the scores we get imply with those. make sure that our submission is legal and whatever sub-1 bpb score we will get is logal. but yes, since we are targettiing non-leaderboard submission, the 8xh100 and 10 min training time doesnt apply. 
+
+just check the repo and confirm if they take scores just for neural or full hybrid system is also allowed/legal.
+
+---
+
+1. checkout the actual upstream parameter-golf repo, see what are the submission guidelines, in terms of what the model has to achieve. make sure that the scores we get imply with those. make sure that our submission is legal and whatever sub-1 bpb score we will get is logal. but yes, since we are targettiing non-leaderboard submission, the 8xh100 and 10 min training time doesnt apply. 
+
+just check the repo and confirm if they take scores just for neural or full hybrid system is also allowed/legal.  /grill-me
+
+---
+
+1. checkout the actual upstream parameter-golf repo, see what are the submission guidelines, in terms of what the model has to achieve. make sure that the scores we get imply with those. make sure that our submission is legal and whatever sub-1 bpb score we will get is logal. but yes, since we are targettiing non-leaderboard submission, the 8xh100 and 10 min training time doesnt apply. 
+
+just check the repo and confirm if they take scores just for neural or full hybrid system is also allowed/legal.  /grill-me
+
+---
+
+new
+
+---
+
+new
+
+---
+
+new

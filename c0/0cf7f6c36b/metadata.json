@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.5.5",
+  "checkpoint_id": "c00cf7f6c36b",
+  "strategy": "manual-commit",
+  "branch": "feat/modal-architecture",
+  "checkpoints_count": 19,
+  "files_touched": [
+    "app.py",
+    "train_neural.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c0/0cf7f6c36b/0/metadata.json",
+      "transcript": "/c0/0cf7f6c36b/0/full.jsonl",
+      "content_hash": "/c0/0cf7f6c36b/0/content_hash.txt",
+      "prompt": "/c0/0cf7f6c36b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2396779,
+    "cache_creation_tokens": 468136,
+    "cache_read_tokens": 32695116,
+    "output_tokens": 163663,
+    "api_call_count": 358
+  }
+}
