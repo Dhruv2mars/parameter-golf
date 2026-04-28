@@ -1,0 +1,53 @@
+you have to checkout parameter-golf feat/modal-architecture worktree that is currently there right now. in there, i have implemented modal.com for gpu training instead of lightning.ai that we currently have on main. 
+
+what i would like is that we utilize both for our training. since both of them provide with free gpu quota, and on modal, i would like to use them both and have an option ready at all times. 
+
+/grill-me
+
+---
+
+- one at a time. when lightning is finished, or stopped for some reason, then use modal. 
+
+/grill-me
+
+---
+
+i dont know, you have to check the modal implementation to know more. i want that if im doing a run on lightning, and it is finished, and at any point if i want that the next training run should be on modal, it should happen
+
+---
+
+do, you should do hugging face checkpointing for this.
+
+---
+
+1. whatever you think is best. but it has to be logical. have to have a good reasoning behind it. 
+2. i decide when to run modal or when to run lightning. its in my hand. only happens when i call it
+3. final and best model.
+
+---
+
+whos kevclark?
+
+---
+
+https://huggingface.co/Dhruv2mars
+
+---
+
+yes. go ahead.
+
+---
+
+great. now run a 1 min training session on lightning ai and tell me the bpb
+
+---
+
+bro, check psat commits. all lightning.ai setup has already done. one studio is already ready and setup for this specific thing only. what the hell are you doing, dont you know that. you have done it yourself in past. check the docs on web as well
+
+---
+
+checkout https://lightning.ai/docs/overview/getting-started and see how to use the cli. 
+
+my teamspace is default-project and studio name is parameter-golf and i am Dhruv2mars. 
+
+you have to use that studio only. and do a 1 min training run to see if you have setup correctly.
