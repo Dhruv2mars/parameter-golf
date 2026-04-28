@@ -37,6 +37,8 @@ from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.checkpoint import checkpoint
 
+from hf_sync import upload_run, HF_REPO_ID
+
 # ============================================================================
 # CONSTANTS
 # ============================================================================
@@ -943,6 +945,29 @@ def train():
         if ckpts:
             latest_ckpt = ckpts[-1]
     
+    # If no local checkpoint, try downloading from HuggingFace
+    if not latest_ckpt and os.environ.get("HF_SYNC_DOWNLOAD", "1") == "1":
+        log(f"No local checkpoint found, trying HuggingFace...")
+        try:
+            from hf_sync import download_run, run_exists, download_config
+            if run_exists(args.run_id):
+                log(f"Found run {args.run_id} on HuggingFace, downloading...")
+                downloaded = download_run(args.run_id, run_dir)
+                # Try to find checkpoint
+                ckpts = sorted(glob.glob(os.path.join(run_dir, f"{_CHECKPOINT_PREFIX}*.pt")))
+                if ckpts:
+                    latest_ckpt = ckpts[-1]
+                    log(f"Downloaded checkpoint: {latest_ckpt}")
+                # Also try best_model.pt directly
+                best_model = os.path.join(run_dir, "best_model.pt")
+                if os.path.exists(best_model):
+                    log(f"Found best_model.pt from HF")
+                    # Load it to resume from that state
+                    raw_model.load_state_dict(torch.load(best_model, map_location="cpu"))
+                    log(f"Loaded best_model.pt from HF")
+        except Exception as e:
+            log(f"HF download failed or no run found: {e}")
+    
     if latest_ckpt:
         log(f"Resuming from checkpoint: {latest_ckpt}")
         resume_step, resume_val_bpb, resume_pos = load_checkpoint(
@@ -953,6 +978,8 @@ def train():
         train_stream_pos = resume_pos
         train_stream.seek_tokens(train_stream_pos)
         log(f"Resumed from step {step}, val_bpb={best_val_bpb:.4f}")
+    else:
+        log(f"Starting fresh training (no checkpoint found)")
     
     # Batch function
     def get_batch():
@@ -1166,6 +1193,31 @@ def train():
         "code_bytes": code_size,
         "total_bytes": total_size
     })
+    
+    # ==========================================================================
+    # UPLOAD TO HUGGINGFACE
+    # ==========================================================================
+    
+    if is_main:
+        log("[6/7] Uploading to HuggingFace...")
+        try:
+            config = {
+                k: getattr(args, k, None) for k in [
+                    "vocab_size", "num_layers", "model_dim", "num_heads",
+                    "num_kv_heads", "mlp_mult", "rope_base", "rope_dims",
+                    "train_batch_tokens", "train_seq_len", "matrix_lr",
+                    "ema_decay", "num_loops", "loop_start", "loop_end",
+                ]
+            }
+            uploaded = upload_run(
+                run_id=args.run_id,
+                output_dir=run_dir,
+                config=config,
+                log_path=f"logs/{args.run_id}.rank0.txt",
+            )
+            log(f"HF upload complete: {uploaded}")
+        except Exception as e:
+            log(f"HF upload failed: {e}")
     
     logf.close()
     if world_size > 1:
